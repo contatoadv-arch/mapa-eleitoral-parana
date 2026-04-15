@@ -15,12 +15,14 @@
   body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
   header { display: flex; align-items: center; gap: 8px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
+  
+  .pref-group { display: flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px; }
+  
   .sel-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
   .sel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  
-  /* CONTAINER TURNO EXCLUSIVO */
-  #turnoContainer { display: none; align-items: center; gap: 2px; background: #000; padding: 2px; border-radius: 4px; border: 1px solid var(--border); margin-left: 5px; }
-  .turno-btn { font-family: 'IBM Plex Mono', monospace; font-size: 9px; padding: 4px 6px; border-radius: 2px; border: none; background: transparent; color: var(--text2); cursor: pointer; font-weight: 600; }
+
+  #turnoContainer { display: none; align-items: center; gap: 2px; margin-left: 5px; padding-left: 5px; border-left: 1px solid var(--border); }
+  .turno-btn { font-family: 'IBM Plex Mono', monospace; font-size: 9px; padding: 2px 5px; border-radius: 2px; border: none; background: transparent; color: var(--text2); cursor: pointer; font-weight: 600; }
   .turno-btn.active { background: var(--accent); color: #fff; }
 
   .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 11px; width: 110px; }
@@ -47,13 +49,15 @@
 <body>
 
 <header>
-  <div id="cargoSelector" style="display:flex; gap:4px;"></div>
-  
-  <div id="turnoContainer">
-    <button class="turno-btn active" id="btn1t" onclick="setTurno('1')">1T</button>
-    <button class="turno-btn" id="btn2t" onclick="setTurno('2')">2T</button>
+  <div class="pref-group">
+    <button class="sel-btn" id="btn-prefeito" onclick="trocarCargo('prefeito')">PREF</button>
+    <div id="turnoContainer">
+      <button class="turno-btn active" id="btn1t" onclick="setTurno('1')">1T</button>
+      <button class="turno-btn" id="btn2t" onclick="setTurno('2')">2T</button>
+    </div>
   </div>
 
+  <div id="outrosCargos" style="display:flex; gap:4px;"></div>
   <div style="width:1px; height:20px; background:var(--border); margin: 0 5px;"></div>
   
   <input type="text" id="searchMun" class="input-search input-mun" placeholder="🔍 Cidade..." onkeyup="if(event.key==='Enter') buscarMunicipio()">
@@ -66,7 +70,7 @@
   <div id="map"></div>
   <div class="sidebar">
     <div class="sidebar-header">
-      <div id="sbTitle" style="font-size:14px; font-weight:600;">Carregando...</div>
+      <div id="sbTitle" style="font-size:14px; font-weight:600;">Processando...</div>
       <div id="sbSub" style="font-size:10px; color:var(--accent);">PR — ANALÍTICO</div>
     </div>
     <div id="ranking" class="ranking-container"></div>
@@ -89,12 +93,12 @@ const PARTIDO_CORES = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4
 let dadosAtivos = null;
 let cacheCSV = ""; 
 let cargoAtual = 'prefeito';
-let turnoAtivo = '1';
+let turnoAtivo = '1'; 
 let munSelecionado = null;
 let geoLayer;
 let layersMunicipios = {};
 
-const map = L.map('map', { zoomSnap: 0.5 }).setView([-24.8, -51.5], 7);
+const map = L.map('map', { zoomSnap: 0.1 }).setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
 async function trocarCargo(id) {
@@ -102,12 +106,12 @@ async function trocarCargo(id) {
   dadosAtivos = null;
   munSelecionado = null;
   
-  // Controle visual do Turno
   document.getElementById('turnoContainer').style.display = (id === 'prefeito') ? 'flex' : 'none';
+  document.querySelectorAll('.sel-btn').forEach(b => b.classList.remove('active'));
+  if(id === 'prefeito') document.getElementById('btn-prefeito').classList.add('active');
+  else document.querySelector(`[data-id="${id}"]`)?.classList.add('active');
 
-  document.querySelectorAll('.sel-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
-  document.getElementById('sbTitle').innerText = "Buscando dados...";
-  
+  document.getElementById('sbTitle').innerText = "Atualizando...";
   const cargoCfg = CARGOS.find(c => c.id === id);
   const url = `https://docs.google.com/spreadsheets/d/e/${cargoCfg.pubId}/pub?output=csv&t=${Date.now()}`;
   
@@ -117,9 +121,7 @@ async function trocarCargo(id) {
     processarCSV(cacheCSV);
     renderizarMapa();
     atualizarRanking();
-  } catch (e) {
-    document.getElementById('sbTitle').innerText = "Erro na Planilha";
-  }
+  } catch (e) { console.error(e); }
 }
 
 function setTurno(t) {
@@ -139,30 +141,34 @@ function processarCSV(csv) {
   
   const cabecalho = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
   
-  // Mapeamento dinâmico
   const idx = {
-    turno: cabecalho.indexOf('NR_TURNO'),
-    mun: cabecalho.indexOf('NM_MUNICIPIO'),
-    cand: cabecalho.indexOf('NM_VOTAVEL'),
-    part: cabecalho.indexOf('SG_PARTIDO'),
-    votos: cabecalho.indexOf('QT_VOTOS')
+    mun: 1, cand: 2, part: 3, sit: 4, votos: 5
   };
 
   const consolidado = {};
   
   for(let i=1; i<linhas.length; i++) {
     const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
-    if (col.length < 4) continue;
+    if (col.length < 6) continue;
     
-    // Filtro de Turno só para prefeito
-    if (cargoAtual === 'prefeito' && idx.turno !== -1 && col[idx.turno] !== turnoAtivo) continue;
+    // LÓGICA DE TURNO ATUALIZADA
+    if (cargoAtual === 'prefeito') {
+      const situacao = col[idx.sit].toUpperCase();
+      
+      if (turnoAtivo === '1') {
+        // No 1T, incluímos quem é 1º TURNO ou qualquer outra coisa (ELEITO, SUPLENTE) exceto 2º TURNO
+        if (situacao.includes("2º TURNO")) continue;
+      } else {
+        // No 2T, incluímos estritamente apenas quem for 2º TURNO
+        if (!situacao.includes("2º TURNO")) continue;
+      }
+    }
 
-    const cid = col[idx.mun]?.toUpperCase();
-    const nome = col[idx.cand]?.toUpperCase();
-    const part = col[idx.part]?.toUpperCase();
-    const votos = parseInt(col[idx.votos]?.replace(/\D/g,'')) || 0;
+    const cid = col[idx.mun].toUpperCase();
+    const nome = col[idx.cand].toUpperCase();
+    const part = col[idx.part].toUpperCase();
+    const votos = parseInt(col[idx.votos].replace(/\D/g,'')) || 0;
 
-    if (!cid || !nome) continue;
     if (!consolidado[cid]) consolidado[cid] = {};
     if (!consolidado[cid][nome]) consolidado[cid][nome] = { nome, part, votos: 0 };
     consolidado[cid][nome].votos += votos;
@@ -185,7 +191,6 @@ function renderizarMapa() {
         onEachFeature: (f, layer) => {
           const cid = f.properties.name.toUpperCase();
           layersMunicipios[cid] = layer;
-          
           const v = getVotosDestaque(cid);
           if (v > 0) {
             layer.bindTooltip(v.toLocaleString(), { 
@@ -193,10 +198,7 @@ function renderizarMapa() {
               opacity: map.getZoom() < 8 ? 0 : 0.9 
             });
           }
-          layer.on('click', () => {
-            munSelecionado = f.properties.name;
-            atualizarRanking();
-          });
+          layer.on('click', () => { munSelecionado = f.properties.name; atualizarRanking(); });
         }
       }).addTo(map);
     });
@@ -212,8 +214,8 @@ function getVotosDestaque(cid) {
 function getEstilo(f) {
   const cid = f.properties.name.toUpperCase();
   const lista = (dadosAtivos && dadosAtivos[cid]) ? dadosAtivos[cid] : null;
-  if (!lista || lista.length === 0) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.4, color: '#222' };
-
+  if (!lista || lista.length === 0) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.4, color: '#333' };
+  
   const s1 = document.getElementById('search1').value.toUpperCase();
   const s2 = document.getElementById('search2').value.toUpperCase();
 
@@ -223,7 +225,6 @@ function getEstilo(f) {
     if (s1 && s2) return { fillColor: v1 > v2 ? '#4f8ef7' : '#e63946', fillOpacity: 0.8, weight: 1, color: '#fff' };
     return { fillColor: s1 ? '#4f8ef7' : '#e63946', fillOpacity: 0.6, weight: 0.5, color: '#fff' };
   }
-  
   const top = lista[0];
   return { fillColor: PARTIDO_CORES[top.part] || '#3a3a3a', fillOpacity: 0.7, weight: 0.3, color: '#000' };
 }
@@ -246,7 +247,7 @@ function atualizarRanking() {
       });
     });
     listaMostrada = Object.values(total).sort((a,b) => b.votos - a.votos);
-    document.getElementById('sbTitle').innerText = "Total Estado";
+    document.getElementById('sbTitle').innerText = "Paraná Total";
   }
 
   const maxV = listaMostrada[0]?.votos || 1;
@@ -276,24 +277,22 @@ function limparGeral() {
 }
 
 map.on('zoomend', () => {
-  const zoom = map.getZoom();
   document.querySelectorAll('.vote-label').forEach(el => {
-    el.style.opacity = zoom < 8 ? 0 : 0.9;
+    el.style.opacity = map.getZoom() < 8 ? 0 : 0.9;
   });
 });
 
-// Inicialização dos botões de Cargo
-const selector = document.getElementById('cargoSelector');
+const outros = document.getElementById('outrosCargos');
 CARGOS.forEach(c => {
+  if(c.id === 'prefeito') return;
   const btn = document.createElement('button');
   btn.className = 'sel-btn';
   btn.innerText = c.label;
   btn.dataset.id = c.id;
   btn.onclick = () => trocarCargo(c.id);
-  selector.appendChild(btn);
+  outros.appendChild(btn);
 });
 
-// Começa com prefeito
 trocarCargo('prefeito');
 </script>
 </body>
