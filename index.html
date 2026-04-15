@@ -79,12 +79,12 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-// IDs das planilhas corrigidos para evitar sobreposição
+// IDs das planilhas corrigidos e validados
 const CARGOS = [
   { id: 'prefeito', label: 'PREF', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
   { id: 'vereador', label: 'VER', pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
   { id: 'governador', label: 'GOV', pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' },
-  { id: 'senador', label: 'SEN', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' }, 
+  { id: 'senador', label: 'SEN', pubId: '2PACX-1vTwDP_rWXeGuNrZa_P1doV5yqyIKoPLgrXGuZ5E1jGW38zbPyqV3qqCcILV8kX8jNHUqtPaLoh8-6le' }, 
   { id: 'dep_estadual', label: 'DEP.E', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
   { id: 'dep_federal', label: 'DEP.F', pubId: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV' }
 ];
@@ -118,6 +118,7 @@ async function trocarCargo(id) {
 
   document.getElementById('sbTitle').innerText = "Carregando...";
   const cargoCfg = CARGOS.find(c => c.id === id);
+  // Garante que o link de saída seja CSV para processamento
   const url = `https://docs.google.com/spreadsheets/d/e/${cargoCfg.pubId}/pub?output=csv&t=${Date.now()}`;
   
   try {
@@ -126,7 +127,7 @@ async function trocarCargo(id) {
     processarCSV(cacheCSV);
     renderizarMapa();
     atualizarRanking();
-  } catch (e) { console.error(e); }
+  } catch (e) { console.error("Erro ao carregar dados:", e); }
 }
 
 function setTurno(t) {
@@ -146,23 +147,30 @@ function processarCSV(csv) {
   
   const cabecalho = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
   
-  // Mapeamento dinâmico para suportar diferentes planilhas
+  // Busca dinâmica de colunas por múltiplos nomes possíveis
+  const findCol = (possibilities) => {
+    for (let p of possibilities) {
+      let idx = cabecalho.indexOf(p.toUpperCase());
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  };
+
   const idx = {
-    mun: cabecalho.indexOf('CIDADE') !== -1 ? cabecalho.indexOf('CIDADE') : cabecalho.indexOf('NM_MUNICIPIO'),
-    cand: cabecalho.indexOf('CANDIDATO') !== -1 ? cabecalho.indexOf('CANDIDATO') : cabecalho.indexOf('NM_VOTAVEL'),
-    part: cabecalho.indexOf('PARTIDO') !== -1 ? cabecalho.indexOf('PARTIDO') : cabecalho.indexOf('SG_PARTIDO'),
-    sit: cabecalho.indexOf('SITUAÇÃO') !== -1 ? cabecalho.indexOf('SITUAÇÃO') : cabecalho.indexOf('DS_SITUACAO'),
-    votos: cabecalho.indexOf('VOTOS') !== -1 ? cabecalho.indexOf('VOTOS') : cabecalho.indexOf('QT_VOTOS')
+    mun: findCol(['CIDADE', 'NM_MUNICIPIO', 'MUNICIPIO']),
+    cand: findCol(['CANDIDATO', 'NM_VOTAVEL', 'NOME']),
+    part: findCol(['PARTIDO', 'SG_PARTIDO', 'SIGLA']),
+    sit: findCol(['SITUAÇÃO', 'DS_SITUACAO', 'SITUACAO']),
+    votos: findCol(['VOTOS', 'QT_VOTOS', 'TOTAL_VOTOS'])
   };
 
   const consolidado = {};
   
   for(let i=1; i<linhas.length; i++) {
     const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
-    if (col.length < 4) continue;
     
-    // Filtro de Turno: apenas se for prefeito
-    if (cargoAtual === 'prefeito' && idx.sit !== -1) {
+    // Filtro de Turno: apenas se for prefeito e a coluna existir
+    if (cargoAtual === 'prefeito' && idx.sit !== -1 && col[idx.sit]) {
       const situacao = col[idx.sit].toUpperCase();
       if (turnoAtivo === '1') {
         if (situacao.includes("2º TURNO")) continue;
@@ -174,7 +182,8 @@ function processarCSV(csv) {
     const cid = col[idx.mun]?.toUpperCase();
     const nome = col[idx.cand]?.toUpperCase();
     const part = col[idx.part]?.toUpperCase();
-    const votos = parseInt((col[idx.votos] || "0").replace(/\D/g,'')) || 0;
+    const votosStr = col[idx.votos] || "0";
+    const votos = parseInt(votosStr.replace(/\D/g,'')) || 0;
 
     if (!cid || !nome) continue;
     if (!consolidado[cid]) consolidado[cid] = {};
@@ -240,7 +249,10 @@ function getEstilo(f) {
 function atualizarRanking() {
   const container = document.getElementById('ranking');
   container.innerHTML = '';
-  if (!dadosAtivos) return;
+  if (!dadosAtivos || Object.keys(dadosAtivos).length === 0) {
+    container.innerHTML = '<div style="color:var(--accent); font-size:10px; padding:20px;">Sem dados para exibir</div>';
+    return;
+  }
 
   let listaMostrada = [];
   if (munSelecionado) {
@@ -301,6 +313,7 @@ CARGOS.forEach(c => {
   outros.appendChild(btn);
 });
 
+// Inicia com Prefeito por padrão
 trocarCargo('prefeito');
 </script>
 </body>
