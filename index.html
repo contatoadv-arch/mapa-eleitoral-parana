@@ -14,25 +14,23 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-  header { display: flex; align-items: center; gap: 10px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
+  header { display: flex; align-items: center; gap: 10px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; flex-wrap: wrap; }
   .sel-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
   .sel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   
-  .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 11px; width: 130px; }
-  .input-mun { width: 160px; border-color: var(--accent); }
+  /* ESTILO TURNO NO HEADER */
+  #turnoContainer { display: none; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 4px; border: 1px solid var(--border); }
+  .turno-btn { font-family: 'IBM Plex Mono', monospace; font-size: 9px; padding: 3px 6px; border-radius: 3px; border: 1px solid transparent; background: transparent; color: var(--text2); cursor: pointer; }
+  .turno-btn.active { background: var(--accent); color: #fff; }
+
+  .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 11px; width: 120px; }
+  .input-mun { width: 140px; border-color: var(--accent); }
 
   .main { display: flex; flex: 1; overflow: hidden; position: relative; }
   #map { flex: 1; background: #07090d; }
   
   .sidebar { width: 320px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-  
-  /* SELETOR DE TURNO VERTICAL */
-  .turno-selector { display: flex; flex-direction: column; gap: 4px; padding: 12px; background: var(--surface2); border-bottom: 1px solid var(--border); }
-  .turno-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--text2); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-  .turno-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; padding: 6px; border-radius: 4px; border: 1px solid var(--border); background: #000; color: var(--text2); cursor: pointer; transition: 0.2s; }
-  .turno-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(79, 142, 247, 0.1); }
-
-  .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); }
   .ranking-container { flex: 1; overflow-y: auto; padding: 12px; }
   
   .rank-item { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
@@ -41,44 +39,34 @@
   .bar-fill { height: 100%; transition: width 0.5s; border-radius: 2px; }
 
   .vote-label {
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-weight: 600 !important; color: rgba(255,255,255,0.9) !important;
-    text-shadow: 0 0 3px #000; font-size: 10px !important;
-    background: none !important; border: none !important; box-shadow: none !important;
+    font-family: 'IBM Plex Mono', monospace !important; font-weight: 600 !important; color: rgba(255,255,255,0.9) !important;
+    text-shadow: 0 0 3px #000; font-size: 10px !important; background: none !important; border: none !important;
   }
-
-  .legend {
-    position: absolute; bottom: 20px; left: 20px; background: rgba(10, 12, 16, 0.9);
-    padding: 10px; border: 1px solid var(--border); border-radius: 4px; z-index: 1000;
-    display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; font-size: 9px; pointer-events: none;
-  }
-  .leg-item { display: flex; align-items: center; gap: 5px; color: var(--text2); }
-  .leg-color { width: 8px; height: 8px; border-radius: 2px; }
 </style>
 </head>
 <body>
 
 <header>
   <div id="cargoSelector" style="display:flex; gap:4px;"></div>
+  
+  <div id="turnoContainer">
+    <button class="turno-btn active" id="btn1t" onclick="setTurno('1')">1T</button>
+    <button class="turno-btn" id="btn2t" onclick="setTurno('2')">2T</button>
+  </div>
+
   <div style="width:1px; height:20px; background:var(--border); margin:0 5px;"></div>
   <input type="text" id="searchMun" class="input-search input-mun" placeholder="🔍 Cidade..." onkeyup="if(event.key==='Enter') buscarMunicipio()">
-  <input type="text" id="search1" class="input-search" placeholder="Candidato A (Azul)" oninput="renderizarMapa()">
-  <input type="text" id="search2" class="input-search" placeholder="Candidato B (Vermelho)" oninput="renderizarMapa()">
+  <input type="text" id="search1" class="input-search" placeholder="Candidato A" oninput="renderizarMapa()">
+  <input type="text" id="search2" class="input-search" placeholder="Candidato B" oninput="renderizarMapa()">
   <button class="sel-btn" onclick="limparGeral()">Limpar</button>
 </header>
 
 <div class="main">
   <div id="map"></div>
-  <div class="legend" id="partyLegend"></div>
   <div class="sidebar">
-    <div class="turno-selector">
-      <div class="turno-label">Filtrar Turno</div>
-      <button class="turno-btn active" id="btn1t" onclick="setTurno('1')">1º TURNO</button>
-      <button class="turno-btn" id="btn2t" onclick="setTurno('2')">2º TURNO</button>
-    </div>
     <div class="sidebar-header">
       <div id="sbTitle" style="font-size:14px; font-weight:600;">Selecione um Cargo</div>
-      <div id="sbSub" style="font-size:10px; color:var(--accent);">DADOS FILTRADOS</div>
+      <div id="sbSub" style="font-size:10px; color:var(--accent);">PARANÁ ANALÍTICO</div>
     </div>
     <div id="ranking" class="ranking-container"></div>
   </div>
@@ -87,12 +75,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const CARGOS = [
-  { id: 'prefeito', label: 'PREF', gid: '0', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
-  { id: 'vereador', label: 'VER', gid: '0', pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
-  { id: 'governador', label: 'GOV', gid: '0', pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' },
-  { id: 'senador', label: 'SEN', gid: '0', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
-  { id: 'dep_estadual', label: 'DEP.E', gid: '0', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
-  { id: 'dep_federal', label: 'DEP.F', gid: '0', pubId: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV' }
+  { id: 'prefeito', label: 'PREF', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
+  { id: 'vereador', label: 'VER', pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
+  { id: 'governador', label: 'GOV', pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' },
+  { id: 'senador', label: 'SEN', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
+  { id: 'dep_estadual', label: 'DEP.E', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
+  { id: 'dep_federal', label: 'DEP.F', pubId: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV' }
 ];
 
 const PARTIDO_CORES = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500' };
@@ -113,12 +101,14 @@ async function trocarCargo(id) {
   dadosAtivos = null;
   munSelecionado = null;
   
+  // Mostrar/Esconder seletor de turno apenas para prefeito
+  document.getElementById('turnoContainer').style.display = (id === 'prefeito') ? 'flex' : 'none';
+
   document.querySelectorAll('.sel-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
-  document.getElementById('sbTitle').innerText = "Carregando...";
-  document.getElementById('ranking').innerHTML = "";
+  document.getElementById('sbTitle').innerText = "Sincronizando...";
   
   const cargoCfg = CARGOS.find(c => c.id === id);
-  const url = `https://docs.google.com/spreadsheets/d/e/${cargoCfg.pubId}/pub?output=csv&gid=${cargoCfg.gid}&t=${Date.now()}`;
+  const url = `https://docs.google.com/spreadsheets/d/e/${cargoCfg.pubId}/pub?output=csv&t=${Date.now()}`;
   
   try {
     const res = await fetch(url);
@@ -127,7 +117,7 @@ async function trocarCargo(id) {
     renderizarMapa();
     atualizarRanking();
   } catch (e) {
-    document.getElementById('sbTitle').innerText = "Erro ao carregar";
+    document.getElementById('sbTitle').innerText = "Erro de Conexão";
   }
 }
 
@@ -144,8 +134,10 @@ function setTurno(t) {
 
 function processarCSV(csv) {
   const linhas = csv.split('\n');
+  if (linhas.length < 2) return;
   const cabecalho = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
   
+  // Mapeamento automático de colunas para evitar quebra
   const idx = {
     turno: cabecalho.indexOf('NR_TURNO'),
     mun: cabecalho.indexOf('NM_MUNICIPIO'),
@@ -156,23 +148,23 @@ function processarCSV(csv) {
 
   const consolidado = {};
   
-  linhas.slice(1).forEach(l => {
-    const col = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
-    if (col.length < 5) return;
+  for(let i=1; i<linhas.length; i++) {
+    const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
+    if (col.length < 4) continue;
     
-    // Filtro de Turno
-    if (idx.turno !== -1 && col[idx.turno] !== turnoAtivo) return;
+    // Filtro de Turno (apenas se a coluna existir e estivermos em Prefeito)
+    if (cargoAtual === 'prefeito' && idx.turno !== -1 && col[idx.turno] !== turnoAtivo) continue;
 
     const cid = col[idx.mun]?.toUpperCase();
     const nome = col[idx.cand]?.toUpperCase();
     const part = col[idx.part]?.toUpperCase();
     const votos = parseInt(col[idx.votos]?.replace(/\D/g,'')) || 0;
 
-    if (!cid || !nome) return;
+    if (!cid || !nome) continue;
     if (!consolidado[cid]) consolidado[cid] = {};
     if (!consolidado[cid][nome]) consolidado[cid][nome] = { nome, part, votos: 0 };
     consolidado[cid][nome].votos += votos;
-  });
+  }
 
   dadosAtivos = {};
   for (let c in consolidado) {
@@ -191,7 +183,6 @@ function renderizarMapa() {
         onEachFeature: (f, layer) => {
           const cid = f.properties.name.toUpperCase();
           layersMunicipios[cid] = layer;
-          
           const v = getVotosDestaque(cid);
           if (v > 0) {
             layer.bindTooltip(v.toLocaleString(), { 
@@ -200,7 +191,6 @@ function renderizarMapa() {
           }
           layer.on('click', () => {
             munSelecionado = f.properties.name;
-            document.getElementById('sbTitle').innerText = munSelecionado;
             atualizarRanking();
           });
         }
@@ -217,8 +207,8 @@ function getVotosDestaque(cid) {
 
 function getEstilo(f) {
   const cid = f.properties.name.toUpperCase();
-  const lista = dadosAtivos ? dadosAtivos[cid] : null;
-  if (!lista || lista.length === 0) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.5 };
+  const lista = (dadosAtivos && dadosAtivos[cid]) ? dadosAtivos[cid] : null;
+  if (!lista || lista.length === 0) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.4 };
 
   const s1 = document.getElementById('search1').value.toUpperCase();
   const s2 = document.getElementById('search2').value.toUpperCase();
@@ -226,13 +216,12 @@ function getEstilo(f) {
   if (s1 || s2) {
     const v1 = lista.find(c => c.nome.includes(s1))?.votos || 0;
     const v2 = lista.find(c => c.nome.includes(s2))?.votos || 0;
-    if (s1 && s2) return { fillColor: v1 > v2 ? '#4f8ef7' : '#e63946', fillOpacity: (v1+v2)>0?0.8:0.1, weight: 1, color: '#fff' };
-    const v = s1 ? v1 : v2;
-    return { fillColor: s1 ? '#4f8ef7' : '#e63946', fillOpacity: Math.min(v/2000, 0.9), weight: 0.5, color: '#fff' };
+    if (s1 && s2) return { fillColor: v1 > v2 ? '#4f8ef7' : '#e63946', fillOpacity: 0.8, weight: 1, color: '#fff' };
+    return { fillColor: s1 ? '#4f8ef7' : '#e63946', fillOpacity: 0.6, weight: 0.5 };
   }
   
   const top = lista[0];
-  return { fillColor: top ? (PARTIDO_CORES[top.part] || '#333') : '#111', fillOpacity: 0.7, weight: 0.3, color: '#444' };
+  return { fillColor: PARTIDO_CORES[top.part] || '#333', fillOpacity: 0.7, weight: 0.3, color: '#444' };
 }
 
 function atualizarRanking() {
@@ -253,7 +242,7 @@ function atualizarRanking() {
       });
     });
     listaMostrada = Object.values(total).sort((a,b) => b.votos - a.votos);
-    document.getElementById('sbTitle').innerText = "Ranking Estadual";
+    document.getElementById('sbTitle').innerText = "Ranking PR";
   }
 
   const maxV = listaMostrada[0]?.votos || 1;
@@ -269,11 +258,7 @@ function atualizarRanking() {
 function buscarMunicipio() {
   const busca = document.getElementById('searchMun').value.toUpperCase();
   const layer = layersMunicipios[busca];
-  if (layer) {
-    map.fitBounds(layer.getBounds(), { maxZoom: 12 });
-    munSelecionado = layer.feature.properties.name;
-    atualizarRanking();
-  }
+  if (layer) { map.fitBounds(layer.getBounds()); munSelecionado = busca; atualizarRanking(); }
 }
 
 function limparGeral() {
@@ -287,9 +272,8 @@ function limparGeral() {
 }
 
 map.on('zoomend', () => {
-  const zoom = map.getZoom();
   document.querySelectorAll('.vote-label').forEach(el => {
-    el.style.opacity = zoom < 8 ? "0" : "1";
+    el.style.opacity = map.getZoom() < 8 ? 0 : 1;
   });
 });
 
