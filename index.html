@@ -3,79 +3,71 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mapa Eleitoral — Paraná (Analítico)</title>
+<title>Mapa Eleitoral PR — Analítico</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f1117; --surface: #181c27; --surface2: #1f2435;
-    --border: #2a3148; --accent: #4f8ef7; --accent2: #f7c94f;
-    --text: #e8ecf4; --text2: #8b93a8; --text3: #5a6070;
-    --mono: 'IBM Plex Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
+    --bg: #0a0c10; --surface: #14171f; --surface2: #1f2430;
+    --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; --text2: #8b93a8;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: var(--sans); background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-  header { display: flex; align-items: center; gap: 15px; padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; flex-wrap: wrap; }
-  .sel-group { display: flex; align-items: center; gap: 8px; border-right: 1px solid var(--border); padding-right: 15px; }
-  .sel-label { font-family: var(--mono); font-size: 9px; color: var(--text3); text-transform: uppercase; }
-  .sel-btn { font-family: var(--mono); font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
+  header { display: flex; align-items: center; gap: 15px; padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
+  .sel-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 5px 10px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; margin-right: 4px; }
   .sel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   
-  /* Buscador e Comparação */
-  .search-box { display: flex; gap: 5px; align-items: center; flex: 1; min-width: 300px; }
-  .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 12px; width: 180px; }
-  .compare-mode { font-size: 10px; color: var(--accent2); display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; width: 150px; }
 
   .main { display: flex; flex: 1; overflow: hidden; }
-  #map { flex: 1; background: #0a0d14; }
+  #map { flex: 1; background: #07090d; }
   
-  .sidebar { width: 340px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-  .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); }
+  .sidebar { width: 320px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+  .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); }
   .ranking-container { flex: 1; overflow-y: auto; padding: 12px; }
   
-  .rank-item { margin-bottom: 12px; }
-  .rank-info { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; font-family: var(--mono); }
-  .bar-bg { background: var(--surface2); height: 6px; border-radius: 3px; overflow: hidden; }
-  .bar-fill { height: 100%; transition: width 0.4s; }
+  .rank-item { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .rank-info { display: flex; justify-content: space-between; font-size: 10px; font-family: 'IBM Plex Mono'; margin-bottom: 4px; }
+  .bar-bg { background: #000; height: 5px; border-radius: 2px; }
+  .bar-fill { height: 100%; transition: width 0.5s; border-radius: 2px; }
 
-  /* Legibilidade das Cidades - Suavizada */
-  .city-label {
+  /* Estilo dos Números de Votos no Mapa */
+  .vote-label {
+    font-family: 'IBM Plex Mono', monospace !important;
     font-weight: 600 !important;
-    color: rgba(255,255,255,0.7) !important;
-    text-shadow: 0 0 2px #000; 
+    color: #fff !important;
+    text-shadow: 1px 1px 2px #000;
     font-size: 9px !important;
     background: none !important; border: none !important; box-shadow: none !important;
   }
 
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--surface); padding: 20px; border-radius: 8px; width: 600px; }
+  /* Legenda de Partidos */
+  .legend {
+    position: absolute; bottom: 20px; left: 20px; background: rgba(20, 23, 31, 0.9);
+    padding: 10px; border: 1px solid var(--border); border-radius: 4px; z-index: 1000;
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; font-size: 10px;
+  }
+  .leg-item { display: flex; align-items: center; gap: 5px; color: var(--text2); }
+  .leg-color { width: 10px; height: 10px; border-radius: 2px; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="sel-group">
-    <span class="sel-label">Cargo</span>
-    <div id="cargoSelector"></div>
-  </div>
-  
-  <div class="search-box">
-    <input type="text" id="search1" class="input-search" placeholder="Candidato A (Azul)..." oninput="filtrarMapa()">
-    <input type="text" id="search2" class="input-search" placeholder="Candidato B (Vermelho)..." oninput="filtrarMapa()">
-    <button class="sel-btn" onclick="limparBusca()">Limpar</button>
-  </div>
-
-  <button class="sel-btn" style="margin-left:auto" onclick="abrirConfig()">⚙ Configurar</button>
+  <div id="cargoSelector"></div>
+  <input type="text" id="search1" class="input-search" placeholder="Candidato A (Azul)" oninput="filtrarMapa()">
+  <input type="text" id="search2" class="input-search" placeholder="Candidato B (Vermelho)" oninput="filtrarMapa()">
+  <button class="sel-btn" onclick="limparSelecao()">Limpar Filtros</button>
 </header>
 
 <div class="main">
   <div id="map"></div>
+  <div class="legend" id="partyLegend"></div>
   <div class="sidebar">
     <div class="sidebar-header">
-      <div id="sbMunicipio" style="font-size:16px; font-weight:bold;">Selecione uma cidade</div>
-      <div id="sbMeta" style="font-size:11px; color:var(--accent)">Dados consolidados</div>
+      <div id="sbTitle" style="font-size:14px; font-weight:bold;">Ranking Estadual</div>
+      <div id="sbSub" style="font-size:10px; color:var(--accent)">Todos os municípios somados</div>
     </div>
     <div id="ranking" class="ranking-container"></div>
   </div>
@@ -91,9 +83,12 @@ const CARGOS = [
   { id: 'dep_federal', label: 'DEP.F' }
 ];
 
-const PARTIDO_CORES = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500','PSDB':'#3a86ff' };
+const PARTIDO_CORES = { 
+  'PT':'#e63946', 'PL':'#1d6ce0', 'PSD':'#8338ec', 'MDB':'#f4a261', 
+  'PP':'#2ec4b6', 'UNIÃO':'#fb8500', 'PSDB':'#3a86ff', 'REPUBLICANOS':'#10ab61', 'PODE':'#20ad97' 
+};
 
-let config = JSON.parse(localStorage.getItem('mapa_v3')) || {
+let config = {
   prefeito: { pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
   vereador: { pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
   governador: { pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' },
@@ -103,6 +98,7 @@ let config = JSON.parse(localStorage.getItem('mapa_v3')) || {
 
 let dadosCache = {}; 
 let cargoAtivo = 'prefeito';
+let munSelecionado = null;
 let geoLayer;
 
 const map = L.map('map').setView([-24.5, -51.5], 7);
@@ -110,14 +106,12 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').add
 
 async function carregarDados() {
   const cfg = config[cargoAtivo];
-  if (!cfg.pubId) return;
   const url = `https://docs.google.com/spreadsheets/d/e/${cfg.pubId}/pub?output=csv`;
-  try {
-    const res = await fetch(url);
-    const csv = await res.text();
-    dadosCache[cargoAtivo] = processarCSV(csv);
-    renderizarMapa();
-  } catch(e) { console.error("Erro na planilha"); }
+  const res = await fetch(url);
+  const csv = await res.text();
+  dadosCache[cargoAtivo] = processarCSV(csv);
+  renderizarMapa();
+  atualizarRanking();
 }
 
 function processarCSV(csv) {
@@ -126,14 +120,10 @@ function processarCSV(csv) {
   linhas.forEach(l => {
     const col = l.split(',').map(c => c.replace(/"/g, '').trim());
     if (col.length < 6) return;
-    const cid = col[1].toUpperCase();
-    const nome = col[2].toUpperCase();
-    const part = col[3].toUpperCase();
-    const votos = parseInt(col[5].replace(/\D/g,'')) || 0;
-
+    const cid = col[1].toUpperCase(), nome = col[2].toUpperCase(), part = col[3].toUpperCase(), votos = parseInt(col[5].replace(/\D/g,'')) || 0;
     if (!consolidado[cid]) consolidado[cid] = {};
     if (!consolidado[cid][nome]) consolidado[cid][nome] = { nome, part, votos: 0 };
-    consolidado[cid][nome].votos += votos; // SOMA DUPLICADOS
+    consolidado[cid][nome].votos += votos;
   });
   const final = {};
   for (let c in consolidado) final[c] = Object.values(consolidado[c]).sort((a,b) => b.votos - a.votos);
@@ -145,65 +135,85 @@ function renderizarMapa() {
   fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json')
     .then(r => r.json()).then(geo => {
       geoLayer = L.geoJSON(geo, {
-        style: f => getEstiloMunicipio(f),
+        style: f => getEstilo(f),
         onEachFeature: (f, layer) => {
-          layer.bindTooltip(f.properties.name, { permanent: true, direction: 'center', className: 'city-label' });
-          layer.on('click', () => {
-            document.getElementById('sbMunicipio').innerText = f.properties.name;
-            atualizarRanking(f.properties.name.toUpperCase());
+          const cid = f.properties.name.toUpperCase();
+          const votosDisplay = getVotosDestaque(cid);
+          if (votosDisplay > 0) {
+            layer.bindTooltip(votosDisplay.toLocaleString(), { permanent: true, direction: 'center', className: 'vote-label' });
+          }
+          layer.on('click', () => { 
+            munSelecionado = f.properties.name; 
+            document.getElementById('sbTitle').innerText = munSelecionado;
+            document.getElementById('sbSub').innerText = "Votação Local";
+            atualizarRanking(); 
           });
         }
       }).addTo(map);
     });
 }
 
-function getEstiloMunicipio(f) {
+function getVotosDestaque(cid) {
+  const lista = dadosCache[cargoAtivo]?.[cid] || [];
+  const s1 = document.getElementById('search1').value.toUpperCase();
+  if (s1) return lista.find(c => c.nome.includes(s1))?.votos || 0;
+  return lista[0]?.votos || 0;
+}
+
+function getEstilo(f) {
   const cid = f.properties.name.toUpperCase();
   const lista = dadosCache[cargoAtivo]?.[cid] || [];
   const s1 = document.getElementById('search1').value.toUpperCase();
   const s2 = document.getElementById('search2').value.toUpperCase();
 
-  // MODO BUSCA / CALOR
   if (s1 || s2) {
     const v1 = lista.find(c => c.nome.includes(s1))?.votos || 0;
     const v2 = lista.find(c => c.nome.includes(s2))?.votos || 0;
-
-    if (s1 && s2) { // COMPARACAO
-      if (v1 === 0 && v2 === 0) return { fillColor: '#111', weight: 0.5, fillOpacity: 0.3 };
-      return { fillColor: v1 > v2 ? '#4f8ef7' : '#e63946', fillOpacity: 0.8, weight: 1, color: '#fff' };
-    }
-    
-    // CALOR INDIVIDUAL
-    const vAtivo = s1 ? v1 : v2;
-    const corBase = s1 ? '#4f8ef7' : '#e63946';
-    if (vAtivo === 0) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.2 };
-    return { fillColor: corBase, fillOpacity: Math.min(vAtivo/5000, 1), weight: 1, color: corBase };
+    if (s1 && s2) return { fillColor: v1 > v2 ? '#4f8ef7' : '#e63946', fillOpacity: (v1+v2)>0?0.8:0.1, weight: 1, color: '#fff' };
+    const v = s1 ? v1 : v2;
+    return { fillColor: s1 ? '#4f8ef7' : '#e63946', fillOpacity: Math.min(v/3000, 0.9), weight: 0.5, color: '#fff' };
   }
-
-  // MODO NORMAL (PARTIDOS)
   const top = lista[0];
-  return {
-    fillColor: top ? (PARTIDO_CORES[top.part] || '#555') : '#1a1f2e',
-    weight: 0.5, color: '#0f1117', fillOpacity: 0.7
-  };
+  return { fillColor: top ? (PARTIDO_CORES[top.part] || '#333') : '#111', fillOpacity: 0.7, weight: 0.3, color: '#444' };
 }
 
-function atualizarRanking(cid) {
-  const lista = dadosCache[cargoAtivo]?.[cid] || [];
+function atualizarRanking() {
   const container = document.getElementById('ranking');
   container.innerHTML = '';
-  const maxV = lista[0]?.votos || 1;
-  lista.slice(0, 20).forEach(c => {
+  let dados;
+
+  if (munSelecionado) {
+    dados = dadosCache[cargoAtivo]?.[munSelecionado.toUpperCase()] || [];
+  } else {
+    // RANKING ESTADUAL (Soma de todos os municípios)
+    const estadual = {};
+    Object.values(dadosCache[cargoAtivo] || {}).forEach(cidade => {
+      cidade.forEach(c => {
+        if (!estadual[c.nome]) estadual[c.nome] = { ...c, votos: 0 };
+        estadual[c.nome].votos += c.votos;
+      });
+    });
+    dados = Object.values(estadual).sort((a,b) => b.votos - a.votos);
+  }
+
+  const maxV = dados[0]?.votos || 1;
+  dados.slice(0, 30).forEach(c => {
     container.innerHTML += `
       <div class="rank-item">
-        <div class="rank-info"><span>${c.nome} (${c.part})</span> <b>${c.votos.toLocaleString()} v</b></div>
-        <div class="bar-bg"><div class="bar-fill" style="width:${(c.votos/maxV)*100}%; background:${PARTIDO_CORES[c.part] || '#8b93a8'}"></div></div>
+        <div class="rank-info"><span>${c.nome} (${c.part})</span> <b>${c.votos.toLocaleString()}</b></div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${(c.votos/maxV)*100}%; background:${PARTIDO_CORES[c.part] || '#555'}"></div></div>
       </div>`;
   });
 }
 
-function filtrarMapa() { geoLayer.setStyle(f => getEstiloMunicipio(f)); }
-function limparBusca() { document.getElementById('search1').value=''; document.getElementById('search2').value=''; filtrarMapa(); }
+function filtrarMapa() { renderizarMapa(); }
+function limparSelecao() { 
+  munSelecionado = null; 
+  document.getElementById('search1').value=''; 
+  document.getElementById('search2').value=''; 
+  document.getElementById('sbTitle').innerText = "Ranking Estadual";
+  carregarDados(); 
+}
 
 function init() {
   const cSel = document.getElementById('cargoSelector');
@@ -211,11 +221,16 @@ function init() {
     const b = document.createElement('button');
     b.className = 'sel-btn' + (cargoAtivo === c.id ? ' active' : '');
     b.innerText = c.label;
-    b.onclick = () => {
+    b.onclick = () => { 
       document.querySelectorAll('.sel-btn').forEach(x => x.classList.remove('active'));
-      b.classList.add('active'); cargoAtivo = c.id; carregarDados();
+      b.classList.add('active'); cargoAtivo = c.id; carregarDados(); 
     };
     cSel.appendChild(b);
+  });
+  
+  const leg = document.getElementById('partyLegend');
+  Object.entries(PARTIDO_CORES).forEach(([p, c]) => {
+    leg.innerHTML += `<div class="leg-item"><div class="leg-color" style="background:${c}"></div>${p}</div>`;
   });
   carregarDados();
 }
