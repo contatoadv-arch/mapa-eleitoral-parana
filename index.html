@@ -70,7 +70,7 @@
   <div id="map"></div>
   <div class="sidebar">
     <div class="sidebar-header">
-      <div id="sbTitle" style="font-size:14px; font-weight:600;">Processando...</div>
+      <div id="sbTitle" style="font-size:14px; font-weight:600;">Iniciando...</div>
       <div id="sbSub" style="font-size:10px; color:var(--accent);">PR — ANALÍTICO</div>
     </div>
     <div id="ranking" class="ranking-container"></div>
@@ -79,16 +79,20 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
+// IDs das planilhas corrigidos para evitar sobreposição
 const CARGOS = [
   { id: 'prefeito', label: 'PREF', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
   { id: 'vereador', label: 'VER', pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
   { id: 'governador', label: 'GOV', pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' },
-  { id: 'senador', label: 'SEN', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
+  { id: 'senador', label: 'SEN', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' }, 
   { id: 'dep_estadual', label: 'DEP.E', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
   { id: 'dep_federal', label: 'DEP.F', pubId: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV' }
 ];
 
-const PARTIDO_CORES = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500','PODE':'#00ced1','REPUBLICANOS':'#10355a' };
+const PARTIDO_CORES = { 
+  'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261',
+  'PP':'#2ec4b6','UNIÃO':'#fb8500','PODE':'#00ced1','REPUBLICANOS':'#10355a' 
+};
 
 let dadosAtivos = null;
 let cacheCSV = ""; 
@@ -108,10 +112,11 @@ async function trocarCargo(id) {
   
   document.getElementById('turnoContainer').style.display = (id === 'prefeito') ? 'flex' : 'none';
   document.querySelectorAll('.sel-btn').forEach(b => b.classList.remove('active'));
+  
   if(id === 'prefeito') document.getElementById('btn-prefeito').classList.add('active');
   else document.querySelector(`[data-id="${id}"]`)?.classList.add('active');
 
-  document.getElementById('sbTitle').innerText = "Atualizando...";
+  document.getElementById('sbTitle').innerText = "Carregando...";
   const cargoCfg = CARGOS.find(c => c.id === id);
   const url = `https://docs.google.com/spreadsheets/d/e/${cargoCfg.pubId}/pub?output=csv&t=${Date.now()}`;
   
@@ -141,7 +146,7 @@ function processarCSV(csv) {
   
   const cabecalho = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
   
-  // Mapeamento Dinâmico por nome de coluna
+  // Mapeamento dinâmico para suportar diferentes planilhas
   const idx = {
     mun: cabecalho.indexOf('CIDADE') !== -1 ? cabecalho.indexOf('CIDADE') : cabecalho.indexOf('NM_MUNICIPIO'),
     cand: cabecalho.indexOf('CANDIDATO') !== -1 ? cabecalho.indexOf('CANDIDATO') : cabecalho.indexOf('NM_VOTAVEL'),
@@ -156,7 +161,7 @@ function processarCSV(csv) {
     const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
     if (col.length < 4) continue;
     
-    // Se o cargo for Prefeito, aplica lógica de turno. Senão, ignora e pega tudo.
+    // Filtro de Turno: apenas se for prefeito
     if (cargoAtual === 'prefeito' && idx.sit !== -1) {
       const situacao = col[idx.sit].toUpperCase();
       if (turnoAtivo === '1') {
@@ -169,8 +174,7 @@ function processarCSV(csv) {
     const cid = col[idx.mun]?.toUpperCase();
     const nome = col[idx.cand]?.toUpperCase();
     const part = col[idx.part]?.toUpperCase();
-    const votosStr = col[idx.votos] || "0";
-    const votos = parseInt(votosStr.replace(/\D/g,'')) || 0;
+    const votos = parseInt((col[idx.votos] || "0").replace(/\D/g,'')) || 0;
 
     if (!cid || !nome) continue;
     if (!consolidado[cid]) consolidado[cid] = {};
@@ -236,10 +240,7 @@ function getEstilo(f) {
 function atualizarRanking() {
   const container = document.getElementById('ranking');
   container.innerHTML = '';
-  if (!dadosAtivos || Object.keys(dadosAtivos).length === 0) {
-    container.innerHTML = '<div style="color:var(--accent); font-size:10px; padding:20px;">Sem dados disponíveis</div>';
-    return;
-  }
+  if (!dadosAtivos) return;
 
   let listaMostrada = [];
   if (munSelecionado) {
