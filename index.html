@@ -15,60 +15,48 @@
   body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
   header { display: flex; align-items: center; gap: 8px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
-  
   .pref-group { display: flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px; }
-  
   .sel-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
   .sel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
   #turnoContainer { display: none; align-items: center; gap: 2px; margin-left: 5px; padding-left: 5px; border-left: 1px solid var(--border); }
   .turno-btn { font-family: 'IBM Plex Mono', monospace; font-size: 9px; padding: 2px 5px; border-radius: 2px; border: none; background: transparent; color: var(--text2); cursor: pointer; font-weight: 600; }
   .turno-btn.active { background: var(--accent); color: #fff; }
-
   .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 11px; width: 110px; }
   .input-mun { width: 130px; border-color: var(--accent); }
 
   .main { display: flex; flex: 1; overflow: hidden; position: relative; }
   #map { flex: 1; background: #07090d; }
   
-  /* Legenda mais transparente e sem sombra agressiva */
   .legend {
-    background: rgba(20, 23, 31, 0.7);
+    background: rgba(20, 23, 31, 0.75);
     padding: 8px;
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 4px;
     color: var(--text);
     font-family: 'IBM Plex Mono', monospace;
     font-size: 9px;
-    line-height: 1.4;
+    pointer-events: none;
   }
-  .legend i {
-    width: 10px;
-    height: 10px;
-    float: left;
-    margin-right: 6px;
-    border-radius: 2px;
-  }
+  .legend i { width: 10px; height: 10px; float: left; margin-right: 6px; border-radius: 2px; }
 
   .sidebar { width: 320px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
   .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); }
   .ranking-container { flex: 1; overflow-y: auto; padding: 12px; }
-  
   .rank-item { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
   .rank-info { display: flex; justify-content: space-between; font-size: 10px; font-family: 'IBM Plex Mono'; margin-bottom: 4px; }
   .bar-bg { background: #000; height: 5px; border-radius: 2px; }
   .bar-fill { height: 100%; transition: width 0.5s; border-radius: 2px; }
 
-  /* Ajuste nos números do mapa: Sem sombra, menores e mais transparentes */
   .vote-label {
     font-family: 'IBM Plex Mono', monospace !important; 
     font-weight: 500 !important; 
-    color: rgba(255, 255, 255, 0.8) !important;
+    color: rgba(255, 255, 255, 0.85) !important;
     font-size: 8px !important; 
     background: none !important; 
     border: none !important;
     text-shadow: none !important;
     box-shadow: none !important;
+    white-space: nowrap;
   }
 </style>
 </head>
@@ -82,10 +70,8 @@
       <button class="turno-btn" id="btn2t" onclick="setTurno('2')">2T</button>
     </div>
   </div>
-
   <div id="outrosCargos" style="display:flex; gap:4px;"></div>
   <div style="width:1px; height:20px; background:var(--border); margin: 0 5px;"></div>
-  
   <input type="text" id="searchMun" class="input-search input-mun" placeholder="🔍 Cidade..." onkeyup="if(event.key==='Enter') buscarMunicipio()">
   <input type="text" id="search1" class="input-search" placeholder="Candidato A" oninput="renderizarMapa()">
   <input type="text" id="search2" class="input-search" placeholder="Candidato B" oninput="renderizarMapa()">
@@ -120,23 +106,26 @@ const PARTIDO_CORES = {
 };
 
 let dadosAtivos = null;
-let cacheCSV = ""; 
 let cargoAtual = 'prefeito';
 let turnoAtivo = '1'; 
 let munSelecionado = null;
 let geoLayer;
 let layersMunicipios = {};
 
-const map = L.map('map', { zoomSnap: 0.1 }).setView([-24.8, -51.5], 7);
+// Otimização: Uso de renderer Canvas para performance fluida no zoom
+const map = L.map('map', { 
+    zoomSnap: 0.1, 
+    preferCanvas: true,
+    wheelPxPerZoomLevel: 120 
+}).setView([-24.8, -51.5], 7);
+
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
 const legend = L.control({position: 'bottomright'});
-legend.onAdd = function (map) {
+legend.onAdd = () => {
     const div = L.DomUtil.create('div', 'legend');
-    div.innerHTML += '<b style="display:block;margin-bottom:4px">PARTIDOS</b>';
-    for (let p in PARTIDO_CORES) {
-        div.innerHTML += `<i style="background:${PARTIDO_CORES[p]}"></i> ${p}<br>`;
-    }
+    div.innerHTML += '<b>PARTIDOS</b><br>';
+    for (let p in PARTIDO_CORES) div.innerHTML += `<i style="background:${PARTIDO_CORES[p]}"></i> ${p}<br>`;
     div.innerHTML += `<i style="background:#3a3a3a"></i> OUTROS`;
     return div;
 };
@@ -150,62 +139,46 @@ async function trocarCargo(id) {
   document.querySelectorAll('.sel-btn').forEach(b => b.classList.remove('active'));
   if(id === 'prefeito') document.getElementById('btn-prefeito').classList.add('active');
   else document.querySelector(`[data-id="${id}"]`)?.classList.add('active');
-  document.getElementById('sbTitle').innerText = "Carregando...";
+  
   const cargoCfg = CARGOS.find(c => c.id === id);
   const url = `https://docs.google.com/spreadsheets/d/e/${cargoCfg.pubId}/pub?output=csv&t=${Date.now()}`;
   try {
     const res = await fetch(url);
-    cacheCSV = await res.text();
-    processarCSV(cacheCSV);
+    const csv = await res.text();
+    processarCSV(csv);
     renderizarMapa();
     atualizarRanking();
   } catch (e) { console.error(e); }
 }
 
-function setTurno(t) {
-  turnoAtivo = t;
-  document.getElementById('btn1t').classList.toggle('active', t === '1');
-  document.getElementById('btn2t').classList.toggle('active', t === '2');
-  if (cacheCSV) {
-    processarCSV(cacheCSV);
-    renderizarMapa();
-    atualizarRanking();
-  }
-}
-
 function processarCSV(csv) {
   const linhas = csv.split('\n').filter(l => l.trim() !== "");
-  if (linhas.length < 2) return;
   const cabecalho = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
   const findIdx = (targets) => cabecalho.findIndex(h => targets.some(t => h.includes(t)));
   const idx = {
-    mun: findIdx(['MUNICIPIO', 'CIDADE', 'NM_MUN']),
-    cand: findIdx(['CANDIDATO', 'NM_VOTAVEL', 'NM_CAND']),
-    part: findIdx(['PARTIDO', 'SG_PARTIDO', 'SG_PAR']),
-    sit: findIdx(['SITUACAO', 'SITUAÇÃO', 'DS_SIT']),
-    votos: findIdx(['VOTOS', 'QT_VOTOS', 'QT_VOT'])
+    mun: findIdx(['MUNICIPIO', 'CIDADE']),
+    cand: findIdx(['CANDIDATO', 'NM_VOTAVEL']),
+    part: findIdx(['PARTIDO', 'SG_PARTIDO']),
+    sit: findIdx(['SITUACAO', 'DS_SIT']),
+    votos: findIdx(['VOTOS', 'QT_VOTOS'])
   };
   const consolidado = {};
   for(let i=1; i<linhas.length; i++) {
     const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
     if (cargoAtual === 'prefeito' && idx.sit !== -1 && col[idx.sit]) {
-      const situacao = col[idx.sit].toUpperCase();
-      if (turnoAtivo === '1') { if (situacao.includes("2º TURNO")) continue; } 
-      else { if (!situacao.includes("2º TURNO")) continue; }
+      const sit = col[idx.sit].toUpperCase();
+      if (turnoAtivo === '1' && sit.includes("2º TURNO")) continue;
+      if (turnoAtivo === '2' && !sit.includes("2º TURNO")) continue;
     }
     const cid = col[idx.mun]?.toUpperCase();
     const nome = col[idx.cand]?.toUpperCase();
-    const part = col[idx.part]?.toUpperCase() || 'S/P';
-    const votos = parseInt((col[idx.votos] || "0").replace(/\D/g,'')) || 0;
     if (!cid || !nome) continue;
     if (!consolidado[cid]) consolidado[cid] = {};
-    if (!consolidado[cid][nome]) consolidado[cid][nome] = { nome, part, votos: 0 };
-    consolidado[cid][nome].votos += votos;
+    if (!consolidado[cid][nome]) consolidado[cid][nome] = { nome, part: col[idx.part]?.toUpperCase() || 'S/P', votos: 0 };
+    consolidado[cid][nome].votos += parseInt((col[idx.votos] || "0").replace(/\D/g,'')) || 0;
   }
   dadosAtivos = {};
-  for (let c in consolidado) {
-    dadosAtivos[c] = Object.values(consolidado[c]).sort((a,b) => b.votos - a.votos);
-  }
+  for (let c in consolidado) dadosAtivos[c] = Object.values(consolidado[c]).sort((a,b) => b.votos - a.votos);
 }
 
 function renderizarMapa() {
@@ -220,7 +193,6 @@ function renderizarMapa() {
           layersMunicipios[cid] = layer;
           const v = getVotosDestaque(cid);
           if (v > 0) {
-            // Aparece a partir de um zoom menor (7.5) para cobrir 90% dos casos
             layer.bindTooltip(v.toLocaleString(), { 
               permanent: true, direction: 'center', className: 'vote-label', 
               opacity: map.getZoom() < 7.5 ? 0 : 0.7 
@@ -241,48 +213,56 @@ function getVotosDestaque(cid) {
 
 function getEstilo(f) {
   const cid = f.properties.name.toUpperCase();
-  const lista = (dadosAtivos && dadosAtivos[cid]) ? dadosAtivos[cid] : null;
+  const lista = dadosAtivos?.[cid];
   if (!lista || lista.length === 0) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.4, color: '#333' };
   const s1 = document.getElementById('search1').value.toUpperCase();
   const s2 = document.getElementById('search2').value.toUpperCase();
   if (s1 || s2) {
     const v1 = lista.find(c => c.nome.includes(s1))?.votos || 0;
     const v2 = lista.find(c => c.nome.includes(s2))?.votos || 0;
-    if (s1 && s2) return { fillColor: v1 > v2 ? '#4f8ef7' : '#e63946', fillOpacity: 0.8, weight: 1, color: '#fff' };
-    return { fillColor: s1 ? '#4f8ef7' : '#e63946', fillOpacity: 0.6, weight: 0.5, color: '#fff' };
+    return { fillColor: v1 > v2 ? '#4f8ef7' : '#e63946', fillOpacity: 0.7, weight: 0.5, color: '#fff' };
   }
-  const top = lista[0];
-  return { fillColor: PARTIDO_CORES[top.part] || '#3a3a3a', fillOpacity: 0.7, weight: 0.3, color: '#000' };
+  return { fillColor: PARTIDO_CORES[lista[0].part] || '#3a3a3a', fillOpacity: 0.7, weight: 0.3, color: '#000' };
 }
 
 function atualizarRanking() {
   const container = document.getElementById('ranking');
   container.innerHTML = '';
   if (!dadosAtivos) return;
-  let listaMostrada = [];
+  let lista = [];
   if (munSelecionado) {
-    listaMostrada = dadosAtivos[munSelecionado.toUpperCase()] || [];
+    lista = dadosAtivos[munSelecionado.toUpperCase()] || [];
     document.getElementById('sbTitle').innerText = munSelecionado;
   } else {
     const total = {};
-    Object.values(dadosAtivos).forEach(cidade => {
-      cidade.forEach(cand => {
-        if (!total[cand.nome]) total[cand.nome] = { ...cand, votos: 0 };
-        total[cand.nome].votos += cand.votos;
-      });
-    });
-    listaMostrada = Object.values(total).sort((a,b) => b.votos - a.votos);
+    Object.values(dadosAtivos).forEach(c => c.forEach(cand => {
+      if (!total[cand.nome]) total[cand.nome] = { ...cand, votos: 0 };
+      total[cand.nome].votos += cand.votos;
+    }));
+    lista = Object.values(total).sort((a,b) => b.votos - a.votos);
     document.getElementById('sbTitle').innerText = "Paraná Total";
   }
-  const maxV = listaMostrada[0]?.votos || 1;
-  listaMostrada.slice(0, 50).forEach(c => {
+  const maxV = lista[0]?.votos || 1;
+  lista.slice(0, 50).forEach(c => {
     container.innerHTML += `
       <div class="rank-item">
-        <div class="rank-info"><span>${c.nome} (${c.part})</span> <b>${c.votos.toLocaleString()}</b></div>
+        <div class="rank-info"><span>${c.nome}</span> <b>${c.votos.toLocaleString()}</b></div>
         <div class="bar-bg"><div class="bar-fill" style="width:${(c.votos/maxV)*100}%; background:${PARTIDO_CORES[c.part] || '#555'}"></div></div>
       </div>`;
   });
 }
+
+// Otimização: Debounce no zoom para evitar lag de opacidade
+let zoomTimeout;
+map.on('zoomend', () => {
+  clearTimeout(zoomTimeout);
+  zoomTimeout = setTimeout(() => {
+    const z = map.getZoom();
+    document.querySelectorAll('.vote-label').forEach(el => {
+      el.style.opacity = z < 7.5 ? 0 : 0.7;
+    });
+  }, 50);
+});
 
 function buscarMunicipio() {
   const busca = document.getElementById('searchMun').value.toUpperCase();
@@ -294,17 +274,10 @@ function limparGeral() {
   munSelecionado = null;
   document.getElementById('search1').value = "";
   document.getElementById('search2').value = "";
-  document.getElementById('searchMun').value = "";
   map.setView([-24.8, -51.5], 7);
   renderizarMapa();
   atualizarRanking();
 }
-
-map.on('zoomend', () => {
-  document.querySelectorAll('.vote-label').forEach(el => {
-    el.style.opacity = map.getZoom() < 7.5 ? 0 : 0.7;
-  });
-});
 
 const outros = document.getElementById('outrosCargos');
 CARGOS.forEach(c => {
