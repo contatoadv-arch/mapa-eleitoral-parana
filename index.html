@@ -79,7 +79,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-// IDs das planilhas corrigidos e validados
+// IDs das planilhas corrigidos para formato de dados (output=csv)
 const CARGOS = [
   { id: 'prefeito', label: 'PREF', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
   { id: 'vereador', label: 'VER', pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
@@ -118,16 +118,21 @@ async function trocarCargo(id) {
 
   document.getElementById('sbTitle').innerText = "Carregando...";
   const cargoCfg = CARGOS.find(c => c.id === id);
-  // Garante que o link de saída seja CSV para processamento
+  
+  // A URL deve obrigatoriamente terminar em pub?output=csv para funcionar
   const url = `https://docs.google.com/spreadsheets/d/e/${cargoCfg.pubId}/pub?output=csv&t=${Date.now()}`;
   
   try {
     const res = await fetch(url);
+    if (!res.ok) throw new Error("Erro ao baixar CSV");
     cacheCSV = await res.text();
     processarCSV(cacheCSV);
     renderizarMapa();
     atualizarRanking();
-  } catch (e) { console.error("Erro ao carregar dados:", e); }
+  } catch (e) { 
+    console.error("Erro no fetch:", e); 
+    document.getElementById('sbTitle').innerText = "Erro de Link";
+  }
 }
 
 function setTurno(t) {
@@ -147,21 +152,17 @@ function processarCSV(csv) {
   
   const cabecalho = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
   
-  // Busca dinâmica de colunas por múltiplos nomes possíveis
-  const findCol = (possibilities) => {
-    for (let p of possibilities) {
-      let idx = cabecalho.indexOf(p.toUpperCase());
-      if (idx !== -1) return idx;
-    }
-    return -1;
+  // Função para encontrar índice da coluna ignorando acentos ou variações
+  const findIdx = (targets) => {
+    return cabecalho.findIndex(h => targets.some(t => h.includes(t)));
   };
 
   const idx = {
-    mun: findCol(['CIDADE', 'NM_MUNICIPIO', 'MUNICIPIO']),
-    cand: findCol(['CANDIDATO', 'NM_VOTAVEL', 'NOME']),
-    part: findCol(['PARTIDO', 'SG_PARTIDO', 'SIGLA']),
-    sit: findCol(['SITUAÇÃO', 'DS_SITUACAO', 'SITUACAO']),
-    votos: findCol(['VOTOS', 'QT_VOTOS', 'TOTAL_VOTOS'])
+    mun: findIdx(['MUNICIPIO', 'CIDADE', 'NM_MUN']),
+    cand: findIdx(['CANDIDATO', 'NM_VOTAVEL', 'NM_CAND']),
+    part: findIdx(['PARTIDO', 'SG_PARTIDO', 'SG_PAR']),
+    sit: findIdx(['SITUACAO', 'SITUAÇÃO', 'DS_SIT']),
+    votos: findIdx(['VOTOS', 'QT_VOTOS', 'QT_VOT'])
   };
 
   const consolidado = {};
@@ -169,7 +170,7 @@ function processarCSV(csv) {
   for(let i=1; i<linhas.length; i++) {
     const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
     
-    // Filtro de Turno: apenas se for prefeito e a coluna existir
+    // Se for prefeito, aplicamos o filtro de situação
     if (cargoAtual === 'prefeito' && idx.sit !== -1 && col[idx.sit]) {
       const situacao = col[idx.sit].toUpperCase();
       if (turnoAtivo === '1') {
@@ -181,9 +182,8 @@ function processarCSV(csv) {
 
     const cid = col[idx.mun]?.toUpperCase();
     const nome = col[idx.cand]?.toUpperCase();
-    const part = col[idx.part]?.toUpperCase();
-    const votosStr = col[idx.votos] || "0";
-    const votos = parseInt(votosStr.replace(/\D/g,'')) || 0;
+    const part = col[idx.part]?.toUpperCase() || 'S/P';
+    const votos = parseInt((col[idx.votos] || "0").replace(/\D/g,'')) || 0;
 
     if (!cid || !nome) continue;
     if (!consolidado[cid]) consolidado[cid] = {};
@@ -250,7 +250,7 @@ function atualizarRanking() {
   const container = document.getElementById('ranking');
   container.innerHTML = '';
   if (!dadosAtivos || Object.keys(dadosAtivos).length === 0) {
-    container.innerHTML = '<div style="color:var(--accent); font-size:10px; padding:20px;">Sem dados para exibir</div>';
+    container.innerHTML = '<div style="color:var(--accent); font-size:10px; padding:20px;">Dica: Verifique se a planilha está publicada como CSV.</div>';
     return;
   }
 
@@ -313,7 +313,7 @@ CARGOS.forEach(c => {
   outros.appendChild(btn);
 });
 
-// Inicia com Prefeito por padrão
+// Inicia com Prefeito
 trocarCargo('prefeito');
 </script>
 </body>
