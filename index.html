@@ -14,39 +14,28 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-
         header { display: flex; align-items: center; gap: 8px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
-        
         .pref-group { display: flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px; }
-        .sel-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
+        .sel-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; transition: 0.2s; }
         .sel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-        
         .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 11px; outline: none; }
-        .input-search:focus { border-color: var(--accent); }
-
         .main { display: flex; flex: 1; overflow: hidden; position: relative; }
         #map { flex: 1; background: #07090d; }
-        
         .sidebar { width: 360px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
         .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); }
         .content-container { flex: 1; overflow-y: auto; padding: 12px; }
-
-        /* Estilos do Confronto */
         .v-section { border-radius: 8px; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); margin-bottom: 10px; }
         .v-name { font-family: 'IBM Plex Mono'; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-        .v-stats { display: flex; justify-content: space-between; margin: 8px 0; font-size: 10px; font-family: 'IBM Plex Mono'; }
         .city-row { display: flex; justify-content: space-between; font-size: 10px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-
-        /* Estilos do Ranking */
         .rank-item { margin-bottom: 10px; }
         .bar-bg { background: #000; height: 5px; border-radius: 2px; margin-top: 4px; }
-        .bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+        .bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease-out; }
     </style>
 </head>
 <body>
 
 <header>
-    <div id="controlesPadrao" class="pref-group">
+    <div class="pref-group">
         <button class="sel-btn active" data-id="prefeito" onclick="trocarCargo('prefeito')">PREF</button>
         <button class="sel-btn" data-id="vereador" onclick="trocarCargo('vereador')">VER</button>
         <button class="sel-btn" data-id="governador" onclick="trocarCargo('governador')">GOV</button>
@@ -63,15 +52,15 @@
         <input type="text" id="cand2" class="input-search" style="width:120px" placeholder="Candidato B" oninput="processarEntrada()">
     </div>
 
-    <button onclick="limparCache()" class="sel-btn" style="margin-left:auto; border-color:#e63946; color:#e63946">Reset Cache</button>
+    <button onclick="localStorage.clear(); location.reload();" class="sel-btn" style="margin-left:auto; border-color:#e63946; color:#e63946">Reset</button>
 </header>
 
 <div class="main">
     <div id="map"></div>
     <div class="sidebar">
         <div class="sidebar-header">
-            <div id="sbTitle" style="font-size:14px; font-weight:600;">Iniciando...</div>
-            <div id="sbSub" style="font-size:10px; color:var(--accent);">PR — ANALÍTICO</div>
+            <div id="sbTitle" style="font-size:14px; font-weight:600;">Carregando...</div>
+            <div id="sbSub" style="font-size:10px; color:var(--accent);">PARANÁ ELEIÇÕES</div>
         </div>
         <div id="sideContent" class="content-container"></div>
     </div>
@@ -79,7 +68,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-// --- CONFIGURAÇÃO ---
 const CARGOS = {
     prefeito: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9',
     vereador: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6',
@@ -91,211 +79,172 @@ const CARGOS = {
 
 const CORES_PARTIDO = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500','PODE':'#00ced1','REPUBLICANOS':'#10355a' };
 
-// --- VARIÁVEIS GLOBAIS ---
 let bancoDados = {}; 
 let cargoAtivo = 'prefeito';
 let munSelecionado = null;
 let geoLayer;
-let layersMunicipios = {};
 let geoDataGlobal = null;
 
 const map = L.map('map', { zoomSnap: 0.5, preferCanvas: true }).setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-// --- FUNÇÕES DE CARGA ---
 async function init() {
     try {
-        console.log("Baixando contornos geográficos...");
         const resp = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
         geoDataGlobal = await resp.json();
         await carregarCargo(cargoAtivo);
     } catch (e) {
-        console.error("Erro na inicialização:", e);
-        document.getElementById('sbTitle').innerText = "ERRO DE CONEXÃO";
+        document.getElementById('sbTitle').innerText = "ERRO AO INICIAR";
     }
 }
 
 async function carregarCargo(id) {
-    const status = document.getElementById('sbTitle');
-    status.innerText = "CARREGANDO...";
-    
-    const cacheKey = `cache_v5_${id}`;
+    document.getElementById('sbTitle').innerText = "BAIXANDO...";
+    const cacheKey = `v6_${id}`;
     let csv = localStorage.getItem(cacheKey);
     
     if (!csv) {
-        try {
-            const res = await fetch(`https://docs.google.com/spreadsheets/d/e/${CARGOS[id]}/pub?output=csv&t=${Date.now()}`);
-            csv = await res.text();
-            if (csv.length < 100) throw new Error("CSV inválido");
-            localStorage.setItem(cacheKey, csv);
-        } catch (e) {
-            status.innerText = "ERRO PLANILHA";
-            return;
-        }
+        const res = await fetch(`https://docs.google.com/spreadsheets/d/e/${CARGOS[id]}/pub?output=csv&t=${Date.now()}`);
+        csv = await res.text();
+        if (csv.length > 200) localStorage.setItem(cacheKey, csv);
     }
+    
     processarCSV(id, csv);
     processarEntrada();
 }
 
 function processarCSV(cargoId, csv) {
     const linhas = csv.split('\n');
-    const cabecalho = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
+    const cab = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
     
     const idx = {
-        mun: cabecalho.findIndex(h => h.includes('MUNICIPIO') || h.includes('NM_MUN')),
-        cand: cabecalho.findIndex(h => h.includes('CANDIDATO') || h.includes('NM_VOTAVEL')),
-        votos: cabecalho.findIndex(h => h.includes('VOTOS') || h.includes('QT_VOTOS')),
-        part: cabecalho.findIndex(h => h.includes('PARTIDO') || h.includes('SG_PARTIDO'))
+        mun: cab.findIndex(h => h.includes('MUNICIPIO') || h.includes('NM_MUN')),
+        cand: cab.findIndex(h => h.includes('CANDIDATO') || h.includes('NM_VOTAVEL')),
+        votos: cab.findIndex(h => h.includes('VOTOS') || h.includes('QT_VOTOS')),
+        part: cab.findIndex(h => h.includes('PARTIDO') || h.includes('SG_PARTIDO'))
     };
 
-    linhas.slice(1).forEach(linha => {
-        const col = linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
+    linhas.slice(1).forEach(l => {
+        const col = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
         const cid = col[idx.mun]?.toUpperCase();
         if (!cid) return;
         if (!bancoDados[cid]) bancoDados[cid] = {};
         if (!bancoDados[cid][cargoId]) bancoDados[cid][cargoId] = { cands: [], teto: 0 };
-        
         const v = parseInt(col[idx.votos]?.replace(/\D/g,'')) || 0;
-        bancoDados[cid][cargoId].cands.push({ n: col[idx.cand]?.toUpperCase(), v: v, p: col[idx.part]?.toUpperCase() });
+        bancoDados[cid][cargoId].cands.push({ n: col[idx.cand]?.toUpperCase(), v, p: col[idx.part]?.toUpperCase() });
         if (v > bancoDados[cid][cargoId].teto) bancoDados[cid][cargoId].teto = v;
     });
 }
 
-// --- LÓGICA DE INTERFACE ---
 function processarEntrada() {
-    const b1 = document.getElementById('cand1').value;
-    const b2 = document.getElementById('cand2').value;
-    const modoConfronto = b1.length >= 3 && b2.length >= 3;
-
-    atualizarMapa(modoConfronto);
-    if (modoConfronto) atualizarConfronto(b1, b2);
-    else atualizarRanking();
+    const b1 = document.getElementById('cand1').value.toUpperCase();
+    const b2 = document.getElementById('cand2').value.toUpperCase();
+    const isConf = b1.length >= 3 && b2.length >= 3;
+    
+    desenharMapa(isConf, b1, b2);
+    if (isConf) renderConfronto(b1, b2);
+    else renderRanking();
 }
 
-function atualizarMapa(confronto) {
+function desenharMapa(isConf, b1, b2) {
     if (geoLayer) map.removeLayer(geoLayer);
-    
     geoLayer = L.geoJSON(geoDataGlobal, {
         style: f => {
             const cid = f.properties.name.toUpperCase();
-            if (confronto) {
-                const d1 = getForca(cid, document.getElementById('cand1').value);
-                const d2 = getForca(cid, document.getElementById('cand2').value);
-                if (!d1 && !d2) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3, color: '#333' };
-                const ratio = (d2?.f || 0) / ((d1?.f || 0) + (d2?.f || 0) || 1);
-                return { fillColor: mixColors('#4f8ef7', '#e63946', ratio), fillOpacity: 0.8, weight: 0.4, color: '#fff' };
-            } else {
-                const lista = bancoDados[cid]?.[cargoAtivo]?.cands || [];
-                if (lista.length === 0) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3, color: '#333' };
-                const top = lista.sort((a,b) => b.v - a.v)[0];
-                return { fillColor: CORES_PARTIDO[top.p] || '#3a3a3a', fillOpacity: 0.6, weight: 0.2, color: '#000' };
+            if (isConf) {
+                const f1 = getForca(cid, b1)?.f || 0;
+                const f2 = getForca(cid, b2)?.f || 0;
+                if (f1 === 0 && f2 === 0) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3 };
+                return { fillColor: mixColors('#4f8ef7', '#e63946', f2/(f1+f2)), fillOpacity: 0.8, weight: 0.5, color: '#fff' };
             }
+            const top = (bancoDados[cid]?.[cargoAtivo]?.cands || []).sort((a,b) => b.v - a.v)[0];
+            return { fillColor: CORES_PARTIDO[top?.p] || '#333', fillOpacity: 0.7, weight: 0.2, color: '#000' };
         },
-        onEachFeature: (f, layer) => {
-            layersMunicipios[f.properties.name.toUpperCase()] = layer;
-            layer.on('click', () => { munSelecionado = f.properties.name; processarEntrada(); });
+        onEachFeature: (f, l) => {
+            l.on('click', () => { munSelecionado = f.properties.name; processarEntrada(); });
         }
     }).addTo(map);
 }
 
 function getForca(cid, busca) {
-    if (!bancoDados[cid] || !busca) return null;
-    const b = busca.toUpperCase();
-    // Procura no cargo atual primeiro, depois nos outros
-    let res = bancoDados[cid][cargoAtivo]?.cands.find(c => c.n && c.n.includes(b));
-    if (res) return { f: (res.v / bancoDados[cid][cargoAtivo].teto) * 100, v: res.v, n: res.n, c: cargoAtivo };
-    
-    for (let cargo in bancoDados[cid]) {
-        const achou = bancoDados[cid][cargo].cands.find(c => c.n && c.n.includes(b));
-        if (achou) return { f: (achou.v / bancoDados[cid][cargo].teto) * 100, v: achou.v, c: cargo, n: achou.n };
+    if (!bancoDados[cid]) return null;
+    for (let c in bancoDados[cid]) {
+        const achou = bancoDados[cid][c].cands.find(x => x.n.includes(busca));
+        if (achou) return { f: (achou.v / bancoDados[cid][c].teto) * 100, v: achou.v, n: achou.n };
     }
     return null;
 }
 
-function atualizarRanking() {
+function renderRanking() {
     document.getElementById('sbTitle').innerText = munSelecionado || "Paraná Total";
     const container = document.getElementById('sideContent');
     container.innerHTML = '';
-    
     let lista = [];
     if (munSelecionado) {
         lista = [...(bancoDados[munSelecionado.toUpperCase()]?.[cargoAtivo]?.cands || [])];
     } else {
-        const total = {};
+        const sum = {};
         Object.values(bancoDados).forEach(cid => {
             (cid[cargoAtivo]?.cands || []).forEach(c => {
-                if (!total[c.n]) total[c.n] = { ...c, v: 0 };
-                total[c.n].v += c.v;
+                if (!sum[c.n]) sum[c.n] = { ...c, v: 0 };
+                sum[c.n].v += c.v;
             });
         });
-        lista = Object.values(total);
+        lista = Object.values(sum);
     }
-    
-    lista.sort((a,b) => b.v - a.v).slice(0, 40).forEach(c => {
-        const maxV = lista[0].v;
+    lista.sort((a,b) => b.v - a.v).slice(0, 30).forEach(c => {
         container.innerHTML += `<div class="rank-item">
-            <div style="display:flex; justify-content:space-between; font-size:10px; font-family:'IBM Plex Mono'"><span>${c.n}</span> <b>${c.v.toLocaleString()}</b></div>
-            <div class="bar-bg"><div class="bar-fill" style="width:${(c.v/maxV)*100}%; background:${CORES_PARTIDO[c.p] || '#555'}"></div></div>
+            <div style="display:flex; justify-content:space-between; font-size:10px;"><span>${c.n}</span><b>${c.v.toLocaleString()}</b></div>
+            <div class="bar-bg"><div class="bar-fill" style="width:${(c.v/lista[0].v)*100}%; background:${CORES_PARTIDO[c.p]||'#555'}"></div></div>
         </div>`;
     });
 }
 
-function atualizarConfronto(b1, b2) {
-    document.getElementById('sbTitle').innerText = "Duelo de Força";
+function renderConfronto(b1, b2) {
+    document.getElementById('sbTitle').innerText = "Confronto de Força";
     const container = document.getElementById('sideContent');
-    
-    const analise = (busca) => {
-        let cidades = []; let totalV = 0; let cargoD = ""; let nomeR = "";
+    const calc = (b) => {
+        let cidades = []; let total = 0; let nome = "";
         for (let cid in bancoDados) {
-            const res = getForca(cid, busca);
-            if (res) { cidades.push({ n: cid, f: res.f, v: res.v }); totalV += res.v; cargoD = res.c; nomeR = res.n; }
+            const res = getForca(cid, b);
+            if (res) { cidades.push({ n: cid, f: res.f }); total += res.v; nome = res.n; }
         }
-        return { top: cidades.sort((a,b) => b.f - a.f).slice(0, 5), totalV, cargo: cargoD, nome: nomeR };
+        return { top: cidades.sort((a,b) => b.f - a.f).slice(0, 5), total, nome };
     };
-
-    const rA = analise(b1); const rB = analise(b2);
+    const r1 = calc(b1); const r2 = calc(b2);
     container.innerHTML = `
         <div class="v-section" style="border-left:4px solid var(--candA)">
-            <div class="v-name" style="color:var(--candA)">${rA.nome || 'NÃO ENCONTRADO'}</div>
-            <div style="font-size:10px; margin:5px 0"><b>${rA.totalV.toLocaleString()}</b> votos totais</div>
-            <div style="font-size:9px; color:var(--text2); margin-top:10px">FORTALEZAS (FORÇA RELATIVA):</div>
-            ${rA.top.map(c => `<div class="city-row"><span>${c.n}</span> <b>${c.f.toFixed(1)}%</b></div>`).join('')}
+            <div class="v-name" style="color:var(--candA)">${r1.nome}</div>
+            <div style="font-size:10px; margin:5px 0">${r1.total.toLocaleString()} votos totais</div>
+            ${r1.top.map(c => `<div class="city-row"><span>${c.n}</span><b>${c.f.toFixed(1)}%</b></div>`).join('')}
         </div>
-        <div style="text-align:center; font-weight:900; color:var(--border); margin:5px 0">VS</div>
         <div class="v-section" style="border-left:4px solid var(--candB)">
-            <div class="v-name" style="color:var(--candB)">${rB.nome || 'NÃO ENCONTRADO'}</div>
-            <div style="font-size:10px; margin:5px 0"><b>${rB.totalV.toLocaleString()}</b> votos totais</div>
-            <div style="font-size:9px; color:var(--text2); margin-top:10px">FORTALEZAS (FORÇA RELATIVA):</div>
-            ${rB.top.map(c => `<div class="city-row"><span>${c.n}</span> <b>${c.f.toFixed(1)}%</b></div>`).join('')}
+            <div class="v-name" style="color:var(--candB)">${r2.nome}</div>
+            <div style="font-size:10px; margin:5px 0">${r2.total.toLocaleString()} votos totais</div>
+            ${r2.top.map(c => `<div class="city-row"><span>${c.n}</span><b>${c.f.toFixed(1)}%</b></div>`).join('')}
         </div>`;
 }
 
-// --- UTILITÁRIOS ---
 function mixColors(c1, c2, w) {
-    const hex = (c) => parseInt(c, 16);
-    const r = Math.round(hex(c1.slice(1,3)) * (1-w) + hex(c2.slice(1,3)) * w);
-    const g = Math.round(hex(c1.slice(3,5)) * (1-w) + hex(c2.slice(3,5)) * w);
-    const b = Math.round(hex(c1.slice(5,7)) * (1-w) + hex(c2.slice(5,7)) * w);
+    const f = (c) => parseInt(c, 16);
+    const r = Math.round(f(c1.slice(1,3))*(1-w) + f(c2.slice(1,3))*w);
+    const g = Math.round(f(c1.slice(3,5))*(1-w) + f(c2.slice(3,5))*w);
+    const b = Math.round(f(c1.slice(5,7))*(1-w) + f(c2.slice(5,7))*w);
     return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
 function trocarCargo(id) {
     cargoAtivo = id;
-    document.querySelectorAll('.sel-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector(`[data-id="${id}"]`).classList.add('active');
+    document.querySelectorAll('.sel-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
     carregarCargo(id);
 }
 
-function limparCache() { localStorage.clear(); location.reload(); }
-
 function buscarMunicipio() {
-    const busca = document.getElementById('searchMun').value.toUpperCase();
-    const layer = layersMunicipios[busca];
-    if (layer) { map.fitBounds(layer.getBounds()); munSelecionado = busca; processarEntrada(); }
+    const b = document.getElementById('searchMun').value.toUpperCase();
+    if (b) { munSelecionado = b; processarEntrada(); }
 }
 
-// Inicia ao carregar a página
-window.onload = init;
+init();
 </script>
 </body>
 </html>
