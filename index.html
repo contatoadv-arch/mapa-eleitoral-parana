@@ -31,23 +31,22 @@
   .main { display: flex; flex: 1; overflow: hidden; position: relative; }
   #map { flex: 1; background: #07090d; }
   
-  /* Estilo da Legenda */
+  /* Legenda mais transparente e sem sombra agressiva */
   .legend {
-    background: rgba(20, 23, 31, 0.9);
-    padding: 10px;
-    border: 1px solid var(--border);
+    background: rgba(20, 23, 31, 0.7);
+    padding: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
     border-radius: 4px;
     color: var(--text);
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    line-height: 1.5;
-    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    font-size: 9px;
+    line-height: 1.4;
   }
   .legend i {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     float: left;
-    margin-right: 8px;
+    margin-right: 6px;
     border-radius: 2px;
   }
 
@@ -60,9 +59,16 @@
   .bar-bg { background: #000; height: 5px; border-radius: 2px; }
   .bar-fill { height: 100%; transition: width 0.5s; border-radius: 2px; }
 
+  /* Ajuste nos números do mapa: Sem sombra, menores e mais transparentes */
   .vote-label {
-    font-family: 'IBM Plex Mono', monospace !important; font-weight: 600 !important; color: #fff !important;
-    text-shadow: 1px 1px 2px #000; font-size: 10px !important; background: none !important; border: none !important;
+    font-family: 'IBM Plex Mono', monospace !important; 
+    font-weight: 500 !important; 
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 8px !important; 
+    background: none !important; 
+    border: none !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
   }
 </style>
 </head>
@@ -124,11 +130,10 @@ let layersMunicipios = {};
 const map = L.map('map', { zoomSnap: 0.1 }).setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-// Criar a Legenda
 const legend = L.control({position: 'bottomright'});
 legend.onAdd = function (map) {
     const div = L.DomUtil.create('div', 'legend');
-    div.innerHTML += '<b style="display:block;margin-bottom:5px">PARTIDOS</b>';
+    div.innerHTML += '<b style="display:block;margin-bottom:4px">PARTIDOS</b>';
     for (let p in PARTIDO_CORES) {
         div.innerHTML += `<i style="background:${PARTIDO_CORES[p]}"></i> ${p}<br>`;
     }
@@ -215,9 +220,10 @@ function renderizarMapa() {
           layersMunicipios[cid] = layer;
           const v = getVotosDestaque(cid);
           if (v > 0) {
+            // Aparece a partir de um zoom menor (7.5) para cobrir 90% dos casos
             layer.bindTooltip(v.toLocaleString(), { 
               permanent: true, direction: 'center', className: 'vote-label', 
-              opacity: map.getZoom() < 8 ? 0 : 0.9 
+              opacity: map.getZoom() < 7.5 ? 0 : 0.7 
             });
           }
           layer.on('click', () => { munSelecionado = f.properties.name; atualizarRanking(); });
@@ -296,7 +302,7 @@ function limparGeral() {
 
 map.on('zoomend', () => {
   document.querySelectorAll('.vote-label').forEach(el => {
-    el.style.opacity = map.getZoom() < 8 ? 0 : 0.9;
+    el.style.opacity = map.getZoom() < 7.5 ? 0 : 0.7;
   });
 });
 
