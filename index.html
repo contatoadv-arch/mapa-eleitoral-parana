@@ -3,29 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mapa Eleitoral PR — Analítico Pro</title>
+<title>Mapa Eleitoral PR — Fluxo Isolado</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0c10; --surface: #14171f; --surface2: #1f2430;
-    --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; --text2: #8b93a8;
+    --bg: #0a0c10; --surface: #14171f; --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; --text2: #8b93a8;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-  header { display: flex; align-items: center; gap: 10px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
-  .sel-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
+  header { display: flex; align-items: center; gap: 10px; padding: 10px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
+  .sel-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
   .sel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   
-  .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 11px; width: 130px; }
-  .input-mun { width: 160px; border-color: var(--accent); }
+  .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; width: 140px; }
 
-  .main { display: flex; flex: 1; overflow: hidden; position: relative; }
+  .main { display: flex; flex: 1; overflow: hidden; }
   #map { flex: 1; background: #07090d; }
   
   .sidebar { width: 320px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-  .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: #1f2430; }
   .ranking-container { flex: 1; overflow-y: auto; padding: 12px; }
   
   .rank-item { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
@@ -34,39 +32,27 @@
   .bar-fill { height: 100%; transition: width 0.5s; border-radius: 2px; }
 
   .vote-label {
-    font-family: 'IBM Plex Mono', monospace !important;
-    font-weight: 600 !important; color: rgba(255,255,255,0.9) !important;
-    text-shadow: 0 0 3px #000; font-size: 10px !important;
-    background: none !important; border: none !important; box-shadow: none !important;
+    font-family: 'IBM Plex Mono', monospace !important; font-weight: 600 !important;
+    color: #fff !important; text-shadow: 1px 1px 2px #000; font-size: 10px !important;
+    background: none !important; border: none !important;
   }
-
-  .legend {
-    position: absolute; bottom: 20px; left: 20px; background: rgba(10, 12, 16, 0.9);
-    padding: 10px; border: 1px solid var(--border); border-radius: 4px; z-index: 1000;
-    display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; font-size: 9px; pointer-events: none;
-  }
-  .leg-item { display: flex; align-items: center; gap: 5px; color: var(--text2); }
-  .leg-color { width: 8px; height: 8px; border-radius: 2px; }
 </style>
 </head>
 <body>
 
 <header>
-  <div id="cargoSelector" style="display:flex; gap:4px;"></div>
-  <div style="width:1px; height:20px; background:var(--border); margin:0 5px;"></div>
-  <input type="text" id="searchMun" class="input-search input-mun" placeholder="🔍 Cidade..." onkeyup="if(event.key==='Enter') buscarMunicipio()">
+  <div id="cargoSelector"></div>
+  <input type="text" id="searchMun" class="input-search" placeholder="🔍 Buscar Cidade..." onkeyup="if(event.key==='Enter') buscarMunicipio()">
   <input type="text" id="search1" class="input-search" placeholder="Candidato A (Azul)" oninput="renderizarMapa()">
-  <input type="text" id="search2" class="input-search" placeholder="Candidato B (Vermelho)" oninput="renderizarMapa()">
-  <button class="sel-btn" onclick="limparGeral()">Limpar</button>
+  <button class="sel-btn" onclick="limparGeral()">Reset</button>
 </header>
 
 <div class="main">
   <div id="map"></div>
-  <div class="legend" id="partyLegend"></div>
   <div class="sidebar">
     <div class="sidebar-header">
       <div id="sbTitle" style="font-size:14px; font-weight:600;">Selecione um Cargo</div>
-      <div id="sbSub" style="font-size:10px; color:var(--accent);">DADOS FILTRADOS</div>
+      <div id="sbSub" style="font-size:10px; color:var(--accent);">AGUARDANDO...</div>
     </div>
     <div id="ranking" class="ranking-container"></div>
   </div>
@@ -74,72 +60,73 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const CARGOS = [
-  { id: 'prefeito', label: 'PREF', gid: '0', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
-  { id: 'vereador', label: 'VER', gid: '0', pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
-  { id: 'governador', label: 'GOV', gid: '0', pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' },
-  { id: 'senador', label: 'SEN', gid: '0', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
-  { id: 'dep_estadual', label: 'DEP.E', gid: '0', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
-  { id: 'dep_federal', label: 'DEP.F', gid: '0', pubId: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV' }
-];
+const CONFIG_CARGOS = {
+  prefeito: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9',
+  vereador: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6',
+  governador: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews',
+  senador: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG', // Exemplo
+  dep_estadual: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG',
+  dep_federal: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV'
+};
 
 const PARTIDO_CORES = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500' };
 
-let dadosAtivos = null; // BLOQUEIO: Só armazena o cargo selecionado atualmente
-let cargoAtual = 'prefeito';
+let dadosAtivos = null; 
+let cargoAtivo = '';
 let munSelecionado = null;
-let geoLayer;
+let geoLayer = null;
 let layersMunicipios = {};
+let requestToken = 0; // TOKEN DE ISOLAMENTO
 
 const map = L.map('map').setView([-24.5, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-// Função de troca de cargo com BLOQUEIO TOTAL
-async function trocarCargo(id) {
-  cargoAtual = id;
-  dadosAtivos = null; // Limpa memória do cargo anterior
-  munSelecionado = null; // Reseta seleção de cidade
+async function carregarFluxo(idCargo) {
+  const meuToken = ++requestToken; // Gera um token único para esta requisição
+  cargoAtivo = idCargo;
   
-  document.querySelectorAll('.sel-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
-  document.getElementById('sbTitle').innerText = "Carregando...";
-  document.getElementById('ranking').innerHTML = "";
-  
-  const cargoCfg = CARGOS.find(c => c.id === id);
-  const url = `https://docs.google.com/spreadsheets/d/e/${cargoCfg.pubId}/pub?output=csv&gid=${cargoCfg.gid}&t=${Date.now()}`;
-  
+  // Interface: Limpa TUDO imediatamente
+  dadosAtivos = null;
+  munSelecionado = null;
+  document.querySelectorAll('.sel-btn').forEach(b => b.classList.toggle('active', b.dataset.id === idCargo));
+  document.getElementById('ranking').innerHTML = "Carregando fluxo...";
+  document.getElementById('sbTitle').innerText = "Sincronizando...";
+
+  const pubId = CONFIG_CARGOS[idCargo];
+  const url = `https://docs.google.com/spreadsheets/d/e/${pubId}/pub?output=csv&t=${Date.now()}`;
+
   try {
     const res = await fetch(url);
     const csv = await res.text();
-    processarCSV(csv);
+
+    // BLOQUEIO: Se o token mudou enquanto eu baixava, eu descarto o resultado
+    if (meuToken !== requestToken) return;
+
+    processarDados(csv);
     renderizarMapa();
     atualizarRanking();
   } catch (e) {
-    document.getElementById('sbTitle').innerText = "Erro ao carregar";
+    if (meuToken === requestToken) document.getElementById('sbTitle').innerText = "Erro na conexão";
   }
 }
 
-function processarCSV(csv) {
+function processarDados(csv) {
   const linhas = csv.split('\n').slice(1);
-  const consolidado = {};
+  const novoMapa = {};
   
   linhas.forEach(l => {
     const col = l.split(',').map(c => c.replace(/"/g, '').trim());
     if (col.length < 6) return;
-    
-    const cid = col[1].toUpperCase();
-    const nome = col[2].toUpperCase();
-    const part = col[3].toUpperCase();
-    const votos = parseInt(col[5].replace(/\D/g,'')) || 0;
+    const cid = col[1].toUpperCase(), nome = col[2].toUpperCase(), part = col[3].toUpperCase(), votos = parseInt(col[5].replace(/\D/g,'')) || 0;
 
-    if (!consolidado[cid]) consolidado[cid] = {};
-    if (!consolidado[cid][nome]) consolidado[cid][nome] = { nome, part, votos: 0 };
-    consolidado[cid][nome].votos += votos; // Soma duplicidades aqui
+    if (!novoMapa[cid]) novoMapa[cid] = {};
+    if (!novoMapa[cid][nome]) novoMapa[cid][nome] = { nome, part, votos: 0 };
+    novoMapa[cid][nome].votos += votos;
   });
 
-  // Converte para listas ordenadas por município
   dadosAtivos = {};
-  for (let c in consolidado) {
-    dadosAtivos[c] = Object.values(consolidado[c]).sort((a,b) => b.votos - a.votos);
+  for (let c in novoMapa) {
+    dadosAtivos[c] = Object.values(novoMapa[c]).sort((a,b) => b.votos - a.votos);
   }
 }
 
@@ -150,20 +137,25 @@ function renderizarMapa() {
   fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json')
     .then(r => r.json()).then(geo => {
       geoLayer = L.geoJSON(geo, {
-        style: f => getEstilo(f),
+        style: f => {
+          const cid = f.properties.name.toUpperCase();
+          const lista = dadosAtivos?.[cid];
+          if (!lista) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.4 };
+          const top = lista[0];
+          return { fillColor: PARTIDO_CORES[top.part] || '#333', fillOpacity: 0.7, weight: 0.3, color: '#444' };
+        },
         onEachFeature: (f, layer) => {
           const cid = f.properties.name.toUpperCase();
           layersMunicipios[cid] = layer;
           
-          const v = getVotosDestaque(cid);
-          if (v > 0) {
-            layer.bindTooltip(v.toLocaleString(), { 
+          const lista = dadosAtivos?.[cid];
+          if (lista && lista[0]) {
+            layer.bindTooltip(lista[0].votos.toLocaleString(), { 
               permanent: true, direction: 'center', className: 'vote-label', opacity: map.getZoom() < 8 ? 0 : 1 
             });
           }
           layer.on('click', () => {
             munSelecionado = f.properties.name;
-            document.getElementById('sbTitle').innerText = munSelecionado;
             atualizarRanking();
           });
         }
@@ -171,44 +163,17 @@ function renderizarMapa() {
     });
 }
 
-function getVotosDestaque(cid) {
-  if (!dadosAtivos || !dadosAtivos[cid]) return 0;
-  const s1 = document.getElementById('search1').value.toUpperCase();
-  if (s1) return dadosAtivos[cid].find(c => c.nome.includes(s1))?.votos || 0;
-  return dadosAtivos[cid][0]?.votos || 0;
-}
-
-function getEstilo(f) {
-  const cid = f.properties.name.toUpperCase();
-  const lista = dadosAtivos ? dadosAtivos[cid] : null;
-  if (!lista) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.5 };
-
-  const s1 = document.getElementById('search1').value.toUpperCase();
-  const s2 = document.getElementById('search2').value.toUpperCase();
-
-  if (s1 || s2) {
-    const v1 = lista.find(c => c.nome.includes(s1))?.votos || 0;
-    const v2 = lista.find(c => c.nome.includes(s2))?.votos || 0;
-    if (s1 && s2) return { fillColor: v1 > v2 ? '#4f8ef7' : '#e63946', fillOpacity: (v1+v2)>0?0.8:0.1, weight: 1, color: '#fff' };
-    const v = s1 ? v1 : v2;
-    return { fillColor: s1 ? '#4f8ef7' : '#e63946', fillOpacity: Math.min(v/2000, 0.9), weight: 0.5, color: '#fff' };
-  }
-  
-  const top = lista[0];
-  return { fillColor: top ? (PARTIDO_CORES[top.part] || '#333') : '#111', fillOpacity: 0.7, weight: 0.3, color: '#444' };
-}
-
 function atualizarRanking() {
   const container = document.getElementById('ranking');
   container.innerHTML = '';
   if (!dadosAtivos) return;
 
-  let listaMostrada = [];
+  let lista = [];
   if (munSelecionado) {
-    listaMostrada = dadosAtivos[munSelecionado.toUpperCase()] || [];
+    lista = dadosAtivos[munSelecionado.toUpperCase()] || [];
     document.getElementById('sbTitle').innerText = munSelecionado;
+    document.getElementById('sbSub').innerText = "Votos no Município";
   } else {
-    // Ranking Geral do Cargo Ativo
     const total = {};
     Object.values(dadosAtivos).forEach(cidade => {
       cidade.forEach(cand => {
@@ -216,52 +181,45 @@ function atualizarRanking() {
         total[cand.nome].votos += cand.votos;
       });
     });
-    listaMostrada = Object.values(total).sort((a,b) => b.votos - a.votos);
+    lista = Object.values(total).sort((a,b) => b.votos - a.votos);
     document.getElementById('sbTitle').innerText = "Ranking Estadual";
+    document.getElementById('sbSub').innerText = cargoAtivo.toUpperCase();
   }
 
-  const maxV = listaMostrada[0]?.votos || 1;
-  listaMostrada.slice(0, 50).forEach(c => {
+  const max = lista[0]?.votos || 1;
+  lista.slice(0, 50).forEach(c => {
     container.innerHTML += `
       <div class="rank-item">
-        <div class="rank-info"><span>${c.nome} (${c.part})</span> <b>${c.votos.toLocaleString()}</b></div>
-        <div class="bar-bg"><div class="bar-fill" style="width:${(c.votos/maxV)*100}%; background:${PARTIDO_CORES[c.part] || '#555'}"></div></div>
+        <div class="rank-info"><span>${c.nome}</span> <b>${c.votos.toLocaleString()}</b></div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${(c.votos/max)*100}%; background:${PARTIDO_CORES[c.part] || '#555'}"></div></div>
       </div>`;
   });
 }
 
 function buscarMunicipio() {
-  const busca = document.getElementById('searchMun').value.toUpperCase();
-  const layer = layersMunicipios[busca];
-  if (layer) {
-    map.fitBounds(layer.getBounds(), { maxZoom: 12 });
-    munSelecionado = layer.feature.properties.name;
-    atualizarRanking();
-  }
+  const b = document.getElementById('searchMun').value.toUpperCase();
+  const l = layersMunicipios[b];
+  if (l) { map.fitBounds(l.getBounds()); munSelecionado = b; atualizarRanking(); }
 }
 
 function limparGeral() {
   munSelecionado = null;
-  document.getElementById('search1').value = "";
-  document.getElementById('search2').value = "";
-  document.getElementById('searchMun').value = "";
   map.setView([-24.5, -51.5], 7);
-  renderizarMapa();
-  atualizarRanking();
+  carregarFluxo(cargoAtivo);
 }
 
-// Inicialização
-const selector = document.getElementById('cargoSelector');
-CARGOS.forEach(c => {
+// Início
+const header = document.getElementById('cargoSelector');
+['prefeito', 'vereador', 'governador', 'senador', 'dep_estadual', 'dep_federal'].forEach(id => {
   const btn = document.createElement('button');
   btn.className = 'sel-btn';
-  btn.innerText = c.label;
-  btn.dataset.id = c.id;
-  btn.onclick = () => trocarCargo(c.id);
-  selector.appendChild(btn);
+  btn.innerText = id.split('_')[0].toUpperCase();
+  btn.dataset.id = id;
+  btn.onclick = () => carregarFluxo(id);
+  header.appendChild(btn);
 });
 
-trocarCargo('prefeito');
+carregarFluxo('prefeito');
 </script>
 </body>
 </html>
