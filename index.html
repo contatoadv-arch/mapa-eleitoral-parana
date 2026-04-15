@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mapa Eleitoral PR — Fluxo Isolado</title>
+<title>Mapa Eleitoral PR — Versão Estrita</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -24,7 +24,7 @@
   
   .sidebar { width: 320px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
   .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: #1f2430; }
-  .ranking-container { flex: 1; overflow-y: auto; padding: 12px; }
+  #ranking { flex: 1; overflow-y: auto; padding: 12px; }
   
   .rank-item { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
   .rank-info { display: flex; justify-content: space-between; font-size: 10px; font-family: 'IBM Plex Mono'; margin-bottom: 4px; }
@@ -43,8 +43,7 @@
 <header>
   <div id="cargoSelector"></div>
   <input type="text" id="searchMun" class="input-search" placeholder="🔍 Buscar Cidade..." onkeyup="if(event.key==='Enter') buscarMunicipio()">
-  <input type="text" id="search1" class="input-search" placeholder="Candidato A (Azul)" oninput="renderizarMapa()">
-  <button class="sel-btn" onclick="limparGeral()">Reset</button>
+  <button class="sel-btn" onclick="limparGeral()">Resetar Vista</button>
 </header>
 
 <div class="main">
@@ -52,81 +51,103 @@
   <div class="sidebar">
     <div class="sidebar-header">
       <div id="sbTitle" style="font-size:14px; font-weight:600;">Selecione um Cargo</div>
-      <div id="sbSub" style="font-size:10px; color:var(--accent);">AGUARDANDO...</div>
+      <div id="sbSub" style="font-size:10px; color:var(--accent);">FILTRO ATIVO: 1º TURNO</div>
     </div>
-    <div id="ranking" class="ranking-container"></div>
+    <div id="ranking"></div>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
+// IDs das suas planilhas (Verifique se os IDs estão corretos para cada cargo)
 const CONFIG_CARGOS = {
-  prefeito: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9',
-  vereador: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6',
-  governador: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews',
-  senador: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG', // Exemplo
-  dep_estadual: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG',
-  dep_federal: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV'
+  prefeito: { id: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9', label: 'PREFEITO' },
+  vereador: { id: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6', label: 'VEREADOR' },
+  governador: { id: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews', label: 'GOVERNADOR' },
+  senador: { id: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG', label: 'SENADOR' },
+  dep_estadual: { id: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG', label: 'DEP. ESTADUAL' },
+  dep_federal: { id: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV', label: 'DEP. FEDERAL' }
 };
 
-const PARTIDO_CORES = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500' };
+const PARTIDO_CORES = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500','PODE':'#20ad97' };
 
 let dadosAtivos = null; 
-let cargoAtivo = '';
+let cargoAtivo = 'prefeito';
 let munSelecionado = null;
 let geoLayer = null;
 let layersMunicipios = {};
-let requestToken = 0; // TOKEN DE ISOLAMENTO
+let requestToken = 0;
 
 const map = L.map('map').setView([-24.5, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-async function carregarFluxo(idCargo) {
-  const meuToken = ++requestToken; // Gera um token único para esta requisição
+async function carregarCargo(idCargo) {
+  const tokenLocal = ++requestToken;
   cargoAtivo = idCargo;
-  
-  // Interface: Limpa TUDO imediatamente
-  dadosAtivos = null;
+  dadosAtivos = null; 
   munSelecionado = null;
-  document.querySelectorAll('.sel-btn').forEach(b => b.classList.toggle('active', b.dataset.id === idCargo));
-  document.getElementById('ranking').innerHTML = "Carregando fluxo...";
-  document.getElementById('sbTitle').innerText = "Sincronizando...";
 
-  const pubId = CONFIG_CARGOS[idCargo];
-  const url = `https://docs.google.com/spreadsheets/d/e/${pubId}/pub?output=csv&t=${Date.now()}`;
+  document.querySelectorAll('.sel-btn').forEach(b => b.classList.toggle('active', b.dataset.id === idCargo));
+  document.getElementById('sbTitle').innerText = "Processando...";
+  document.getElementById('ranking').innerHTML = "";
+
+  const cfg = CONFIG_CARGOS[idCargo];
+  const url = `https://docs.google.com/spreadsheets/d/e/${cfg.id}/pub?output=csv&t=${Date.now()}`;
 
   try {
     const res = await fetch(url);
     const csv = await res.text();
+    if (tokenLocal !== requestToken) return;
 
-    // BLOQUEIO: Se o token mudou enquanto eu baixava, eu descarto o resultado
-    if (meuToken !== requestToken) return;
-
-    processarDados(csv);
+    processarDados(csv, cfg.label); // Passa o nome do cargo para o filtro
     renderizarMapa();
     atualizarRanking();
   } catch (e) {
-    if (meuToken === requestToken) document.getElementById('sbTitle').innerText = "Erro na conexão";
+    document.getElementById('sbTitle').innerText = "Erro na Planilha";
   }
 }
 
-function processarDados(csv) {
-  const linhas = csv.split('\n').slice(1);
-  const novoMapa = {};
+function processarDados(csv, filtroCargo) {
+  const linhas = csv.split('\n');
+  const headers = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
   
-  linhas.forEach(l => {
-    const col = l.split(',').map(c => c.replace(/"/g, '').trim());
-    if (col.length < 6) return;
-    const cid = col[1].toUpperCase(), nome = col[2].toUpperCase(), part = col[3].toUpperCase(), votos = parseInt(col[5].replace(/\D/g,'')) || 0;
+  // Identifica as colunas dinamicamente para evitar erro de posição
+  const idxTurno = headers.indexOf('NR_TURNO');
+  const idxCargo = headers.indexOf('DS_CARGO');
+  const idxMun = headers.indexOf('NM_MUNICIPIO');
+  const idxCand = headers.indexOf('NM_VOTAVEL');
+  const idxPart = headers.indexOf('SG_PARTIDO');
+  const idxVotos = headers.indexOf('QT_VOTOS');
 
-    if (!novoMapa[cid]) novoMapa[cid] = {};
-    if (!novoMapa[cid][nome]) novoMapa[cid][nome] = { nome, part, votos: 0 };
-    novoMapa[cid][nome].votos += votos;
+  const novoMapa = {};
+
+  linhas.slice(1).forEach(l => {
+    const col = l.split(',').map(c => c.replace(/"/g, '').trim());
+    if (col.length < 5) return;
+
+    const turno = col[idxTurno];
+    const cargoPlanilha = col[idxCargo]?.toUpperCase();
+    const municipio = col[idxMun]?.toUpperCase();
+    const candidato = col[idxCand]?.toUpperCase();
+    const partido = col[idxPart]?.toUpperCase();
+    const votos = parseInt(col[idxVotos]) || 0;
+
+    // --- TRAVA DE ISOLAMENTO ---
+    // 1. Só aceita 1º Turno
+    if (turno !== "1") return; 
+    // 2. Só aceita o cargo selecionado (ex: ignora Vereador se estiver em Prefeito)
+    if (cargoPlanilha !== filtroCargo) return; 
+
+    if (!novoMapa[municipio]) novoMapa[municipio] = {};
+    if (!novoMapa[municipio][candidato]) {
+        novoMapa[municipio][candidato] = { nome: candidato, part: partido, votos: 0 };
+    }
+    novoMapa[municipio][candidato].votos += votos;
   });
 
   dadosAtivos = {};
-  for (let c in novoMapa) {
-    dadosAtivos[c] = Object.values(novoMapa[c]).sort((a,b) => b.votos - a.votos);
+  for (let m in novoMapa) {
+    dadosAtivos[m] = Object.values(novoMapa[m]).sort((a,b) => b.votos - a.votos);
   }
 }
 
@@ -140,7 +161,7 @@ function renderizarMapa() {
         style: f => {
           const cid = f.properties.name.toUpperCase();
           const lista = dadosAtivos?.[cid];
-          if (!lista) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.4 };
+          if (!lista || lista.length === 0) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.4 };
           const top = lista[0];
           return { fillColor: PARTIDO_CORES[top.part] || '#333', fillOpacity: 0.7, weight: 0.3, color: '#444' };
         },
@@ -172,7 +193,6 @@ function atualizarRanking() {
   if (munSelecionado) {
     lista = dadosAtivos[munSelecionado.toUpperCase()] || [];
     document.getElementById('sbTitle').innerText = munSelecionado;
-    document.getElementById('sbSub').innerText = "Votos no Município";
   } else {
     const total = {};
     Object.values(dadosAtivos).forEach(cidade => {
@@ -182,15 +202,14 @@ function atualizarRanking() {
       });
     });
     lista = Object.values(total).sort((a,b) => b.votos - a.votos);
-    document.getElementById('sbTitle').innerText = "Ranking Estadual";
-    document.getElementById('sbSub').innerText = cargoAtivo.toUpperCase();
+    document.getElementById('sbTitle').innerText = "Paraná: 1º Turno";
   }
 
   const max = lista[0]?.votos || 1;
   lista.slice(0, 50).forEach(c => {
     container.innerHTML += `
       <div class="rank-item">
-        <div class="rank-info"><span>${c.nome}</span> <b>${c.votos.toLocaleString()}</b></div>
+        <div class="rank-info"><span>${c.nome} (${c.part})</span> <b>${c.votos.toLocaleString()}</b></div>
         <div class="bar-bg"><div class="bar-fill" style="width:${(c.votos/max)*100}%; background:${PARTIDO_CORES[c.part] || '#555'}"></div></div>
       </div>`;
   });
@@ -205,21 +224,21 @@ function buscarMunicipio() {
 function limparGeral() {
   munSelecionado = null;
   map.setView([-24.5, -51.5], 7);
-  carregarFluxo(cargoAtivo);
+  atualizarRanking();
 }
 
 // Início
-const header = document.getElementById('cargoSelector');
-['prefeito', 'vereador', 'governador', 'senador', 'dep_estadual', 'dep_federal'].forEach(id => {
+const selector = document.getElementById('cargoSelector');
+Object.keys(CONFIG_CARGOS).forEach(id => {
   const btn = document.createElement('button');
   btn.className = 'sel-btn';
   btn.innerText = id.split('_')[0].toUpperCase();
   btn.dataset.id = id;
-  btn.onclick = () => carregarFluxo(id);
-  header.appendChild(btn);
+  btn.onclick = () => carregarCargo(id);
+  selector.appendChild(btn);
 });
 
-carregarFluxo('prefeito');
+carregarCargo('prefeito');
 </script>
 </body>
 </html>
