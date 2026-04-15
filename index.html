@@ -25,7 +25,14 @@
   #map { flex: 1; background: #07090d; }
   
   .sidebar { width: 320px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-  .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  
+  /* SELETOR DE TURNO VERTICAL */
+  .turno-selector { display: flex; flex-direction: column; gap: 4px; padding: 12px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .turno-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--text2); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .turno-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; padding: 6px; border-radius: 4px; border: 1px solid var(--border); background: #000; color: var(--text2); cursor: pointer; transition: 0.2s; }
+  .turno-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(79, 142, 247, 0.1); }
+
+  .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface); }
   .ranking-container { flex: 1; overflow-y: auto; padding: 12px; }
   
   .rank-item { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
@@ -64,6 +71,11 @@
   <div id="map"></div>
   <div class="legend" id="partyLegend"></div>
   <div class="sidebar">
+    <div class="turno-selector">
+      <div class="turno-label">Filtrar Turno</div>
+      <button class="turno-btn active" id="btn1t" onclick="setTurno('1')">1º TURNO</button>
+      <button class="turno-btn" id="btn2t" onclick="setTurno('2')">2º TURNO</button>
+    </div>
     <div class="sidebar-header">
       <div id="sbTitle" style="font-size:14px; font-weight:600;">Selecione um Cargo</div>
       <div id="sbSub" style="font-size:10px; color:var(--accent);">DADOS FILTRADOS</div>
@@ -85,8 +97,10 @@ const CARGOS = [
 
 const PARTIDO_CORES = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500' };
 
-let dadosAtivos = null; // BLOQUEIO: Só armazena o cargo selecionado atualmente
+let dadosAtivos = null;
+let cacheCSV = ""; 
 let cargoAtual = 'prefeito';
+let turnoAtivo = '1';
 let munSelecionado = null;
 let geoLayer;
 let layersMunicipios = {};
@@ -94,11 +108,10 @@ let layersMunicipios = {};
 const map = L.map('map').setView([-24.5, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-// Função de troca de cargo com BLOQUEIO TOTAL
 async function trocarCargo(id) {
   cargoAtual = id;
-  dadosAtivos = null; // Limpa memória do cargo anterior
-  munSelecionado = null; // Reseta seleção de cidade
+  dadosAtivos = null;
+  munSelecionado = null;
   
   document.querySelectorAll('.sel-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
   document.getElementById('sbTitle').innerText = "Carregando...";
@@ -109,8 +122,8 @@ async function trocarCargo(id) {
   
   try {
     const res = await fetch(url);
-    const csv = await res.text();
-    processarCSV(csv);
+    cacheCSV = await res.text();
+    processarCSV(cacheCSV);
     renderizarMapa();
     atualizarRanking();
   } catch (e) {
@@ -118,25 +131,49 @@ async function trocarCargo(id) {
   }
 }
 
+function setTurno(t) {
+  turnoAtivo = t;
+  document.getElementById('btn1t').classList.toggle('active', t === '1');
+  document.getElementById('btn2t').classList.toggle('active', t === '2');
+  if (cacheCSV) {
+    processarCSV(cacheCSV);
+    renderizarMapa();
+    atualizarRanking();
+  }
+}
+
 function processarCSV(csv) {
-  const linhas = csv.split('\n').slice(1);
+  const linhas = csv.split('\n');
+  const cabecalho = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
+  
+  const idx = {
+    turno: cabecalho.indexOf('NR_TURNO'),
+    mun: cabecalho.indexOf('NM_MUNICIPIO'),
+    cand: cabecalho.indexOf('NM_VOTAVEL'),
+    part: cabecalho.indexOf('SG_PARTIDO'),
+    votos: cabecalho.indexOf('QT_VOTOS')
+  };
+
   const consolidado = {};
   
-  linhas.forEach(l => {
-    const col = l.split(',').map(c => c.replace(/"/g, '').trim());
-    if (col.length < 6) return;
+  linhas.slice(1).forEach(l => {
+    const col = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
+    if (col.length < 5) return;
     
-    const cid = col[1].toUpperCase();
-    const nome = col[2].toUpperCase();
-    const part = col[3].toUpperCase();
-    const votos = parseInt(col[5].replace(/\D/g,'')) || 0;
+    // Filtro de Turno
+    if (idx.turno !== -1 && col[idx.turno] !== turnoAtivo) return;
 
+    const cid = col[idx.mun]?.toUpperCase();
+    const nome = col[idx.cand]?.toUpperCase();
+    const part = col[idx.part]?.toUpperCase();
+    const votos = parseInt(col[idx.votos]?.replace(/\D/g,'')) || 0;
+
+    if (!cid || !nome) return;
     if (!consolidado[cid]) consolidado[cid] = {};
     if (!consolidado[cid][nome]) consolidado[cid][nome] = { nome, part, votos: 0 };
-    consolidado[cid][nome].votos += votos; // Soma duplicidades aqui
+    consolidado[cid][nome].votos += votos;
   });
 
-  // Converte para listas ordenadas por município
   dadosAtivos = {};
   for (let c in consolidado) {
     dadosAtivos[c] = Object.values(consolidado[c]).sort((a,b) => b.votos - a.votos);
@@ -181,7 +218,7 @@ function getVotosDestaque(cid) {
 function getEstilo(f) {
   const cid = f.properties.name.toUpperCase();
   const lista = dadosAtivos ? dadosAtivos[cid] : null;
-  if (!lista) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.5 };
+  if (!lista || lista.length === 0) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.5 };
 
   const s1 = document.getElementById('search1').value.toUpperCase();
   const s2 = document.getElementById('search2').value.toUpperCase();
@@ -208,7 +245,6 @@ function atualizarRanking() {
     listaMostrada = dadosAtivos[munSelecionado.toUpperCase()] || [];
     document.getElementById('sbTitle').innerText = munSelecionado;
   } else {
-    // Ranking Geral do Cargo Ativo
     const total = {};
     Object.values(dadosAtivos).forEach(cidade => {
       cidade.forEach(cand => {
@@ -250,7 +286,13 @@ function limparGeral() {
   atualizarRanking();
 }
 
-// Inicialização
+map.on('zoomend', () => {
+  const zoom = map.getZoom();
+  document.querySelectorAll('.vote-label').forEach(el => {
+    el.style.opacity = zoom < 8 ? "0" : "1";
+  });
+});
+
 const selector = document.getElementById('cargoSelector');
 CARGOS.forEach(c => {
   const btn = document.createElement('button');
