@@ -59,13 +59,10 @@
 <header>
   <div id="cargoSelector" style="display:flex; gap:4px;"></div>
   <div style="width:1px; height:20px; background:var(--border); margin:0 5px;"></div>
-  
   <input type="text" id="searchMun" class="input-search input-mun" placeholder="🔍 Buscar Cidade..." onkeyup="if(event.key==='Enter') buscarMunicipio()">
-  
   <div style="width:1px; height:20px; background:var(--border); margin:0 5px;"></div>
   <input type="text" id="search1" class="input-search" placeholder="Candidato A (Azul)" oninput="filtrarMapa()">
   <input type="text" id="search2" class="input-search" placeholder="Candidato B (Vermelho)" oninput="filtrarMapa()">
-  
   <button class="sel-btn" onclick="limparGeral()">Limpar</button>
   <button class="sel-btn" style="margin-left:auto" onclick="abrirConfig()">⚙ Config</button>
 </header>
@@ -75,8 +72,8 @@
   <div class="legend" id="partyLegend"></div>
   <div class="sidebar">
     <div class="sidebar-header">
-      <div id="sbTitle" style="font-size:14px; font-weight:600;">Ranking Estadual</div>
-      <div id="sbSub" style="font-size:10px; color:var(--accent); text-transform:uppercase; letter-spacing:1px;">Aguardando dados...</div>
+      <div id="sbTitle" style="font-size:14px; font-weight:600;">Carregando...</div>
+      <div id="sbSub" style="font-size:10px; color:var(--accent); text-transform:uppercase;">Selecione um cargo</div>
     </div>
     <div id="ranking" class="ranking-container"></div>
   </div>
@@ -106,7 +103,8 @@ const PARTIDO_CORES = {
   'UNIÃO':'#fb8500', 'PSDB':'#3a86ff', 'REPUBLICANOS':'#10ab61', 'PODE':'#20ad97', 'NOVO':'#ff8000' 
 };
 
-let config = JSON.parse(localStorage.getItem('mapa_v4')) || {
+// Carrega as configurações do LocalStorage ou usa as padrão
+let config = JSON.parse(localStorage.getItem('mapa_v5')) || {
   prefeito: { pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
   vereador: { pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
   governador: { pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' },
@@ -115,15 +113,16 @@ let config = JSON.parse(localStorage.getItem('mapa_v4')) || {
   dep_federal: { pubId: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV' }
 };
 
-let dadosCache = {}; 
+let dadosCache = {}; // Cache de dados carregados
 let cargoAtivo = 'prefeito';
 let munSelecionado = null;
 let geoLayer;
-let layersMunicipios = {}; // Guardar referência para busca
+let layersMunicipios = {};
 
 const map = L.map('map').setView([-24.5, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
+// Função para gerenciar a visibilidade dos números conforme zoom
 map.on('zoomend', () => {
   const zoom = map.getZoom();
   document.querySelectorAll('.vote-label').forEach(el => {
@@ -134,15 +133,36 @@ map.on('zoomend', () => {
 
 async function carregarDados() {
   const cfg = config[cargoAtivo];
-  if (!cfg.pubId) return;
-  const url = `https://docs.google.com/spreadsheets/d/e/${cfg.pubId}/pub?output=csv&gid=0`;
+  if (!cfg.pubId) {
+    document.getElementById('sbTitle').innerText = "Configure o ID";
+    return;
+  }
+  
+  // LIMPEZA CRÍTICA: Esvazia o cache do cargo atual e limpa a interface antes de carregar o novo
+  dadosCache[cargoAtivo] = null; 
+  document.getElementById('ranking').innerHTML = 'Carregando dados...';
+  document.getElementById('sbTitle').innerText = "Carregando...";
+
+  const url = `https://docs.google.com/spreadsheets/d/e/${cfg.pubId}/pub?output=csv&gid=0&t=${new Date().getTime()}`;
+  
   try {
     const res = await fetch(url);
     const csv = await res.text();
     dadosCache[cargoAtivo] = processarCSV(csv);
+    
+    // Atualiza interface após carregar
+    if(munSelecionado) {
+        document.getElementById('sbTitle').innerText = munSelecionado;
+    } else {
+        document.getElementById('sbTitle').innerText = "Ranking Estadual";
+    }
+    
     renderizarMapa();
     atualizarRanking();
-  } catch(e) { console.error("Erro ao carregar"); }
+  } catch(e) { 
+    console.error("Erro ao carregar");
+    document.getElementById('sbTitle').innerText = "Erro ao carregar";
+  }
 }
 
 function processarCSV(csv) {
@@ -197,9 +217,8 @@ function buscarMunicipio() {
     const bounds = layer.getBounds();
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
     clicarNoMunicipio(layer.feature.properties.name);
-    layer.openTooltip();
   } else {
-    alert("Município não encontrado. Verifique a grafia.");
+    alert("Município não encontrado.");
   }
 }
 
@@ -230,13 +249,20 @@ function getEstilo(f) {
 function atualizarRanking() {
   const container = document.getElementById('ranking');
   container.innerHTML = '';
-  let dados = [];
+  
+  // Verifica se existem dados carregados para o cargo
+  const dadosDesteCargo = dadosCache[cargoAtivo];
+  if (!dadosDesteCargo) {
+    container.innerHTML = 'Carregando...';
+    return;
+  }
 
+  let dados = [];
   if (munSelecionado) {
-    dados = dadosCache[cargoAtivo]?.[munSelecionado.toUpperCase()] || [];
+    dados = dadosDesteCargo[munSelecionado.toUpperCase()] || [];
   } else {
     const estadual = {};
-    Object.values(dadosCache[cargoAtivo] || {}).forEach(cidade => {
+    Object.values(dadosDesteCargo).forEach(cidade => {
       cidade.forEach(c => {
         if (!estadual[c.nome]) estadual[c.nome] = { ...c, votos: 0 };
         estadual[c.nome].votos += c.votos;
@@ -257,6 +283,7 @@ function atualizarRanking() {
 }
 
 function filtrarMapa() { renderizarMapa(); }
+
 function limparGeral() { 
   munSelecionado = null; 
   document.getElementById('searchMun').value='';
@@ -264,8 +291,7 @@ function limparGeral() {
   document.getElementById('search2').value=''; 
   document.getElementById('sbTitle').innerText = "Ranking Estadual";
   map.setView([-24.5, -51.5], 7);
-  atualizarRanking();
-  renderizarMapa();
+  carregarDados(); 
 }
 
 function abrirConfig() {
@@ -276,7 +302,7 @@ function abrirConfig() {
 
 function salvarConfig() {
   CARGOS.forEach(c => { config[c.id].pubId = document.getElementById(`cfg_${c.id}`).value; });
-  localStorage.setItem('mapa_v4', JSON.stringify(config));
+  localStorage.setItem('mapa_v5', JSON.stringify(config));
   document.getElementById('modalOverlay').classList.remove('open');
   carregarDados();
 }
