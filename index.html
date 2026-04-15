@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mapa Eleitoral PR — Confronto de Força</title>
+<title>Mapa Eleitoral PR — Analítico & Confronto</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -15,106 +15,101 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-  header { display: flex; align-items: center; gap: 10px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
-  .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; outline: none; }
+  header { display: flex; align-items: center; gap: 8px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
   
-  .status-badge { font-family: 'IBM Plex Mono', monospace; font-size: 9px; padding: 4px 8px; border-radius: 3px; background: #1a1e2e; color: #4f8ef7; border: 1px solid #2a3148; }
+  /* Botões de Cargo */
+  .pref-group { display: flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px; }
+  .sel-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
+  .sel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  
+  .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 11px; outline: none; }
+  .input-search:focus { border-color: var(--accent); }
 
   .main { display: flex; flex: 1; overflow: hidden; position: relative; }
   #map { flex: 1; background: #07090d; }
   
-  /* PAINEL LATERAL DE CONFRONTO */
-  .sidebar { width: 380px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-  .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); text-align: center; }
-  
-  .confronto-container { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 20px; }
-  
-  .v-section { border-radius: 8px; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); }
-  .v-section.active-a { border-left: 5px solid var(--candA); }
-  .v-section.active-b { border-left: 5px solid var(--candB); }
+  /* Sidebar Dinâmica */
+  .sidebar { width: 360px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+  .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .content-container { flex: 1; overflow-y: auto; padding: 12px; }
 
-  .v-name { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; margin-bottom: 2px; text-transform: uppercase; }
-  .v-cargo { font-size: 10px; color: var(--text2); margin-bottom: 10px; display: block; }
-  
-  .v-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-  .v-stat-box { background: #000; padding: 8px; border-radius: 4px; text-align: center; }
-  .v-stat-label { font-size: 8px; color: var(--text2); display: block; }
-  .v-stat-val { font-family: 'IBM Plex Mono'; font-size: 12px; font-weight: 600; }
+  /* Estilos do Confronto */
+  .v-section { border-radius: 8px; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); margin-bottom: 10px; }
+  .v-name { font-family: 'IBM Plex Mono'; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+  .v-stats { display: flex; justify-content: space-between; margin: 8px 0; font-size: 10px; font-family: 'IBM Plex Mono'; }
+  .city-row { display: flex; justify-content: space-between; font-size: 10px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
 
-  .top-cities-title { font-size: 10px; font-weight: 600; color: var(--text2); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-  .city-row { display: flex; justify-content: space-between; font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-  .city-name { font-weight: 400; }
-  .city-perc { font-family: 'IBM Plex Mono'; font-weight: 600; }
+  /* Estilos do Ranking Padrão */
+  .rank-item { margin-bottom: 10px; }
+  .bar-bg { background: #000; height: 5px; border-radius: 2px; margin-top: 4px; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
 
-  .vs-divider { text-align: center; font-family: 'IBM Plex Mono'; font-style: italic; color: var(--border); font-weight: 900; font-size: 24px; margin: -10px 0; z-index: 1; }
+  .vote-label { font-family: 'IBM Plex Mono' !important; font-size: 8px !important; color: white !important; text-shadow: 0 0 3px #000; pointer-events: none; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="status-badge" id="loadStatus">CARREGANDO...</div>
-  <input type="text" id="searchMun" class="input-search" style="width:110px" placeholder="🔍 Ir para cidade..." onkeyup="if(event.key==='Enter') buscarMunicipio()">
-  
-  <div style="display:flex; align-items:center; gap:8px; padding: 4px 10px; background: rgba(255,255,255,0.03); border-radius: 5px; border: 1px solid var(--border);">
-    <input type="text" id="cand1" class="input-search" style="width:150px; border-color: var(--candA)" placeholder="Candidato A" oninput="comparar()">
-    <span style="font-size:10px; font-weight:bold; color:var(--text2)">X</span>
-    <input type="text" id="cand2" class="input-search" style="width:150px; border-color: var(--candB)" placeholder="Candidato B" oninput="comparar()">
+  <div id="controlesPadrao" class="pref-group">
+    <button class="sel-btn active" id="btn-prefeito" onclick="trocarCargo('prefeito')">PREF</button>
+    <div id="outrosCargos" style="display:flex; gap:2px; margin-left:2px;"></div>
   </div>
-  <button onclick="localStorage.clear(); location.reload();" style="margin-left:auto; padding: 6px; font-size:9px; background:none; border:1px solid var(--border); color:var(--text2); cursor:pointer;">Limpar Cache</button>
+  
+  <input type="text" id="searchMun" class="input-search" style="width:100px" placeholder="🔍 Cidade" onkeyup="if(event.key==='Enter') buscarMunicipio()">
+  
+  <div style="display:flex; align-items:center; gap:5px; padding: 3px 8px; background: rgba(255,255,255,0.03); border-radius: 5px; border: 1px solid var(--border);">
+    <input type="text" id="cand1" class="input-search" style="width:120px" placeholder="Candidato A" oninput="processarMudanca()">
+    <span style="font-size:10px; color:var(--text2)">VS</span>
+    <input type="text" id="cand2" class="input-search" style="width:120px" placeholder="Candidato B" oninput="processarMudanca()">
+  </div>
+
+  <button onclick="limparGeral()" class="sel-btn" style="margin-left:auto; border-color:#e63946; color:#e63946">Reset</button>
 </header>
 
 <div class="main">
   <div id="map"></div>
   <div class="sidebar">
     <div class="sidebar-header">
-      <div style="font-size:12px; font-weight:600; letter-spacing: 2px;">PAINEL DE CONFRONTO</div>
+      <div id="sbTitle" style="font-size:14px; font-weight:600;">Carregando...</div>
+      <div id="sbSub" style="font-size:10px; color:var(--accent);">PR — ANALÍTICO</div>
     </div>
-    <div id="confronto" class="confronto-container">
-       <div style="color:var(--text2); text-align:center; margin-top:50px;">Digite dois nomes para iniciar o duelo de força relativa.</div>
-    </div>
+    <div id="sideContent" class="content-container"></div>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const CARGOS = [
-  { id: 'prefeito', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
-  { id: 'vereador', pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
-  { id: 'governador', pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' },
-  { id: 'senador', pubId: '2PACX-1vTwDP_rWXeGuNrZa_P1doV5yqyIKoPLgrXGuZ5E1jGW38zbPyqV3qqCcILV8kX8jNHUqtPaLoh8-6le' },
-  { id: 'dep_estadual', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
-  { id: 'dep_federal', pubId: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV' }
+  { id: 'prefeito', label: 'PREF', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
+  { id: 'vereador', label: 'VER', pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
+  { id: 'governador', label: 'GOV', pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' },
+  { id: 'senador', label: 'SEN', pubId: '2PACX-1vTwDP_rWXeGuNrZa_P1doV5yqyIKoPLgrXGuZ5E1jGW38zbPyqV3qqCcILV8kX8jNHUqtPaLoh8-6le' },
+  { id: 'dep_estadual', label: 'DEP.E', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
+  { id: 'dep_federal', label: 'DEP.F', pubId: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV' }
 ];
 
+const CORES_PARTIDO = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500','PODE':'#00ced1','REPUBLICANOS':'#10355a' };
+
 let bancoDados = {}; 
-let layersMunicipios = {};
+let cargoAtivo = 'prefeito';
+let munSelecionado = null;
 let geoLayer;
+let layersMunicipios = {};
 
 const map = L.map('map', { zoomSnap: 0.5, preferCanvas: true }).setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-function mixColors(color1, color2, weight) {
-  const p = weight;
-  const hex = (c) => parseInt(c, 16);
-  const r = Math.round(hex(color1.slice(1,3)) * (1-p) + hex(color2.slice(1,3)) * p);
-  const g = Math.round(hex(color1.slice(3,5)) * (1-p) + hex(color2.slice(3,5)) * p);
-  const b = Math.round(hex(color1.slice(5,7)) * (1-p) + hex(color2.slice(5,7)) * p);
-  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-}
-
 async function init() {
   for (const cargo of CARGOS) {
-    const cacheKey = `data_v3_${cargo.id}`;
-    let csv = localStorage.getItem(cacheKey);
+    let csv = localStorage.getItem(`cache_${cargo.id}`);
     if (!csv) {
       const res = await fetch(`https://docs.google.com/spreadsheets/d/e/${cargo.pubId}/pub?output=csv`);
       csv = await res.text();
-      localStorage.setItem(cacheKey, csv);
+      localStorage.setItem(`cache_${cargo.id}`, csv);
     }
     processarCSV(cargo.id, csv);
   }
-  document.getElementById('loadStatus').innerText = "DADOS OK";
-  renderizarMapa();
+  processarMudanca();
 }
 
 function processarCSV(cargoId, csv) {
@@ -123,17 +118,20 @@ function processarCSV(cargoId, csv) {
   const idx = {
     mun: cabecalho.findIndex(h => h.includes('MUNICIPIO') || h.includes('NM_MUN')),
     cand: cabecalho.findIndex(h => h.includes('CANDIDATO') || h.includes('NM_VOTAVEL')),
-    votos: cabecalho.findIndex(h => h.includes('VOTOS') || h.includes('QT_VOTOS'))
+    votos: cabecalho.findIndex(h => h.includes('VOTOS') || h.includes('QT_VOTOS')),
+    part: cabecalho.findIndex(h => h.includes('PARTIDO') || h.includes('SG_PARTIDO'))
   };
+
   for(let i=1; i<linhas.length; i++) {
     const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
     const cid = col[idx.mun]?.toUpperCase();
     if (!cid) continue;
     if (!bancoDados[cid]) bancoDados[cid] = {};
-    if (!bancoDados[cid][cargoId]) bancoDados[cid][cargoId] = { candidatos: [], teto: 0 };
-    const votos = parseInt(col[idx.votos]?.replace(/\D/g,'')) || 0;
-    bancoDados[cid][cargoId].candidatos.push({ n: col[idx.cand]?.toUpperCase(), v: votos });
-    if (votos > bancoDados[cid][cargoId].teto) bancoDados[cid][cargoId].teto = votos;
+    if (!bancoDados[cid][cargoId]) bancoDados[cid][cargoId] = { cands: [], teto: 0 };
+    
+    const v = parseInt(col[idx.votos]?.replace(/\D/g,'')) || 0;
+    bancoDados[cid][cargoId].cands.push({ n: col[idx.cand]?.toUpperCase(), v: v, p: col[idx.part]?.toUpperCase() });
+    if (v > bancoDados[cid][cargoId].teto) bancoDados[cid][cargoId].teto = v;
   }
 }
 
@@ -141,106 +139,144 @@ function getForca(cid, busca) {
   if (!bancoDados[cid] || !busca || busca.length < 2) return null;
   const b = busca.toUpperCase();
   for (let cargo in bancoDados[cid]) {
-    const achou = bancoDados[cid][cargo].candidatos.find(c => c.n && c.n.includes(b));
-    if (achou) return { f: (achou.v / bancoDados[cid][cargo].teto) * 100, v: achou.v, c: cargo, n: achou.n };
+    const achou = bancoDados[cid][cargo].cands.find(c => c.n && c.n.includes(b));
+    if (achou) return { f: (achou.v / bancoDados[cid][cargo].teto) * 100, v: achou.v, c: cargo, n: achou.n, p: achou.p };
   }
   return null;
 }
 
-function comparar() {
-  renderizarMapa();
-  atualizarConfronto();
+function processarMudanca() {
+  const b1 = document.getElementById('cand1').value;
+  const b2 = document.getElementById('cand2').value;
+  const modoConfronto = b1.length >= 2 && b2.length >= 2;
+
+  renderizarMapa(modoConfronto);
+  if (modoConfronto) atualizarConfronto(b1, b2);
+  else atualizarRanking();
 }
 
-function renderizarMapa() {
+function renderizarMapa(confronto) {
   if (geoLayer) map.removeLayer(geoLayer);
   fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json')
   .then(r => r.json()).then(geo => {
     geoLayer = L.geoJSON(geo, {
       style: f => {
         const cid = f.properties.name.toUpperCase();
-        const d1 = getForca(cid, document.getElementById('cand1').value);
-        const d2 = getForca(cid, document.getElementById('cand2').value);
-        if (!d1 && !d2) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3, color: '#333' };
-        const f1 = d1 ? d1.f : 0;
-        const f2 = d2 ? d2.f : 0;
-        const ratio = f2 / (f1 + f2 || 1);
-        return { fillColor: mixColors('#4f8ef7', '#e63946', ratio), fillOpacity: 0.7, weight: 0.4, color: '#fff' };
+        if (confronto) {
+          const d1 = getForca(cid, document.getElementById('cand1').value);
+          const d2 = getForca(cid, document.getElementById('cand2').value);
+          if (!d1 && !d2) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3, color: '#333' };
+          const f1 = d1 ? d1.f : 0; const f2 = d2 ? d2.f : 0;
+          const ratio = f2 / (f1 + f2 || 1);
+          return { fillColor: mixColors('#4f8ef7', '#e63946', ratio), fillOpacity: 0.8, weight: 0.4, color: '#fff' };
+        } else {
+          const lista = bancoDados[cid]?.[cargoAtivo]?.cands || [];
+          if (lista.length === 0) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3, color: '#333' };
+          const top = lista.sort((a,b) => b.v - a.v)[0];
+          return { fillColor: CORES_PARTIDO[top.p] || '#3a3a3a', fillOpacity: 0.6, weight: 0.2, color: '#000' };
+        }
       },
       onEachFeature: (f, layer) => {
         layersMunicipios[f.properties.name.toUpperCase()] = layer;
-        layer.on('click', () => { /* Zoom opcional */ });
+        layer.on('click', () => { munSelecionado = f.properties.name; processarMudanca(); });
       }
     }).addTo(map);
   });
 }
 
-function atualizarConfronto() {
-  const container = document.getElementById('confronto');
-  const b1 = document.getElementById('cand1').value;
-  const b2 = document.getElementById('cand2').value;
+function atualizarRanking() {
+  document.getElementById('sbTitle').innerText = munSelecionado || "Paraná Total";
+  document.getElementById('sbSub').innerText = `CARGO: ${cargoAtivo.toUpperCase()}`;
+  const container = document.getElementById('sideContent');
+  container.innerHTML = '';
+  
+  let lista = [];
+  if (munSelecionado) {
+    lista = [...(bancoDados[munSelecionado.toUpperCase()]?.[cargoAtivo]?.cands || [])];
+  } else {
+    const total = {};
+    Object.values(bancoDados).forEach(cid => {
+      (cid[cargoAtivo]?.cands || []).forEach(c => {
+        if (!total[c.n]) total[c.n] = { ...c, v: 0 };
+        total[c.n].v += c.v;
+      });
+    });
+    lista = Object.values(total);
+  }
+  
+  lista.sort((a,b) => b.v - a.v).slice(0, 50).forEach(c => {
+    const maxV = lista[0].v;
+    container.innerHTML += `<div class="rank-item">
+      <div style="display:flex; justify-content:space-between; font-size:10px; font-family:'IBM Plex Mono'"><span>${c.n}</span> <b>${c.v.toLocaleString()}</b></div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${(c.v/maxV)*100}%; background:${CORES_PARTIDO[c.p] || '#555'}"></div></div>
+    </div>`;
+  });
+}
 
-  if (!b1 || !b2) return;
-
-  // Analisar Top Cidades para cada um
+function atualizarConfronto(b1, b2) {
+  document.getElementById('sbTitle').innerText = "Duelo de Força";
+  document.getElementById('sbSub').innerText = "NORMALIZADO POR TETO LOCAL";
+  const container = document.getElementById('sideContent');
+  
   const analise = (busca) => {
-    let cidades = [];
-    let totalVotos = 0;
-    let cargoDetectado = "";
-    let nomeReal = "";
-
+    let cidades = []; let totalV = 0; let cargoD = ""; let nomeR = "";
     for (let cid in bancoDados) {
       const res = getForca(cid, busca);
-      if (res) {
-        cidades.push({ nome: cid, forca: res.f, votos: res.v });
-        totalVotos += res.v;
-        cargoDetectado = res.c;
-        nomeReal = res.n;
-      }
+      if (res) { cidades.push({ n: cid, f: res.f, v: res.v }); totalV += res.v; cargoD = res.c; nomeR = res.n; }
     }
-    return { 
-      top: cidades.sort((a,b) => b.forca - a.forca).slice(0, 5), 
-      totalVotos, 
-      cargo: cargoDetectado, 
-      nome: nomeReal 
-    };
+    return { top: cidades.sort((a,b) => b.f - a.f).slice(0, 5), totalV, cargo: cargoD, nome: nomeR };
   };
 
-  const resA = analise(b1);
-  const resB = analise(b2);
-
+  const rA = analise(b1); const rB = analise(b2);
   container.innerHTML = `
-    <div class="v-section active-a">
-      <div class="v-name" style="color:var(--candA)">${resA.nome || b1.toUpperCase()}</div>
-      <span class="v-cargo">${resA.cargo.toUpperCase() || '---'}</span>
-      <div class="v-stats-grid">
-        <div class="v-stat-box"><span class="v-stat-label">VOTOS TOTAIS</span><span class="v-stat-val">${resA.totalVotos.toLocaleString()}</span></div>
-        <div class="v-stat-box"><span class="v-stat-label">MÉDIA FORÇA</span><span class="v-stat-val">${(resA.top[0]?.forca || 0).toFixed(1)}%*</span></div>
-      </div>
-      <div class="top-cities-title">Principais Fortalezas (Força Relativa)</div>
-      ${resA.top.map(c => `<div class="city-row"><span class="city-name">${c.nome}</span><span class="city-perc" style="color:var(--candA)">${c.forca.toFixed(1)}%</span></div>`).join('')}
+    <div class="v-section" style="border-left:4px solid var(--candA)">
+      <div class="v-name" style="color:var(--candA)">${rA.nome || 'NÃO ENCONTRADO'}</div>
+      <div class="v-stats"><span>${rA.cargo.toUpperCase()}</span> <b>${rA.totalV.toLocaleString()} votos</b></div>
+      <div style="font-size:9px; color:var(--text2); margin-bottom:5px">TOP CIDADES (FORÇA):</div>
+      ${rA.top.map(c => `<div class="city-row"><span>${c.n}</span> <b style="color:var(--candA)">${c.f.toFixed(1)}%</b></div>`).join('')}
     </div>
+    <div style="text-align:center; font-weight:900; color:var(--border); margin:10px 0">VS</div>
+    <div class="v-section" style="border-left:4px solid var(--candB)">
+      <div class="v-name" style="color:var(--candB)">${rB.nome || 'NÃO ENCONTRADO'}</div>
+      <div class="v-stats"><span>${rB.cargo.toUpperCase()}</span> <b>${rB.totalV.toLocaleString()} votos</b></div>
+      <div style="font-size:9px; color:var(--text2); margin-bottom:5px">TOP CIDADES (FORÇA):</div>
+      ${rB.top.map(c => `<div class="city-row"><span>${c.n}</span> <b style="color:var(--candB)">${c.f.toFixed(1)}%</b></div>`).join('')}
+    </div>`;
+}
 
-    <div class="vs-divider">VS</div>
+function mixColors(c1, c2, w) {
+  const hex = (c) => parseInt(c, 16);
+  const r = Math.round(hex(c1.slice(1,3)) * (1-w) + hex(c2.slice(1,3)) * w);
+  const g = Math.round(hex(c1.slice(3,5)) * (1-w) + hex(c2.slice(3,5)) * w);
+  const b = Math.round(hex(c1.slice(5,7)) * (1-w) + hex(c2.slice(5,7)) * w);
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
 
-    <div class="v-section active-b">
-      <div class="v-name" style="color:var(--candB)">${resB.nome || b2.toUpperCase()}</div>
-      <span class="v-cargo">${resB.cargo.toUpperCase() || '---'}</span>
-      <div class="v-stats-grid">
-        <div class="v-stat-box"><span class="v-stat-label">VOTOS TOTAIS</span><span class="v-stat-val">${resB.totalVotos.toLocaleString()}</span></div>
-        <div class="v-stat-box"><span class="v-stat-label">MÉDIA FORÇA</span><span class="v-stat-val">${(resB.top[0]?.forca || 0).toFixed(1)}%*</span></div>
-      </div>
-      <div class="top-cities-title">Principais Fortalezas (Força Relativa)</div>
-      ${resB.top.map(c => `<div class="city-row"><span class="city-name">${c.nome}</span><span class="city-perc" style="color:var(--candB)">${c.forca.toFixed(1)}%</span></div>`).join('')}
-    </div>
-  `;
+function trocarCargo(id) {
+  cargoAtivo = id;
+  document.querySelectorAll('.sel-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[onclick="trocarCargo('${id}')"]`).classList.add('active');
+  document.getElementById('cand1').value = '';
+  document.getElementById('cand2').value = '';
+  processarMudanca();
+}
+
+function limparGeral() {
+  localStorage.clear();
+  location.reload();
 }
 
 function buscarMunicipio() {
   const busca = document.getElementById('searchMun').value.toUpperCase();
   const layer = layersMunicipios[busca];
-  if (layer) map.fitBounds(layer.getBounds());
+  if (layer) { map.fitBounds(layer.getBounds()); munSelecionado = busca; processarMudanca(); }
 }
+
+// Iniciar botões de cargo extras
+const outros = document.getElementById('outrosCargos');
+CARGOS.slice(1).forEach(c => {
+  outros.innerHTML += `<button class="sel-btn" onclick="trocarCargo('${c.id}')">${c.label}</button>`;
+});
 
 init();
 </script>
