@@ -88,7 +88,7 @@ const CARGOS = [
   { id: 'dep_federal', label: 'DEP.F', pubId: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV' }
 ];
 
-const PARTIDO_CORES = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500' };
+const PARTIDO_CORES = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500','PODE':'#00ced1','REPUBLICANOS':'#10355a' };
 
 let dadosAtivos = null;
 let cacheCSV = ""; 
@@ -136,39 +136,43 @@ function setTurno(t) {
 }
 
 function processarCSV(csv) {
-  const linhas = csv.split('\n');
+  const linhas = csv.split('\n').filter(l => l.trim() !== "");
   if (linhas.length < 2) return;
   
   const cabecalho = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
   
+  // Mapeamento Dinâmico por nome de coluna
   const idx = {
-    mun: 1, cand: 2, part: 3, sit: 4, votos: 5
+    mun: cabecalho.indexOf('CIDADE') !== -1 ? cabecalho.indexOf('CIDADE') : cabecalho.indexOf('NM_MUNICIPIO'),
+    cand: cabecalho.indexOf('CANDIDATO') !== -1 ? cabecalho.indexOf('CANDIDATO') : cabecalho.indexOf('NM_VOTAVEL'),
+    part: cabecalho.indexOf('PARTIDO') !== -1 ? cabecalho.indexOf('PARTIDO') : cabecalho.indexOf('SG_PARTIDO'),
+    sit: cabecalho.indexOf('SITUAÇÃO') !== -1 ? cabecalho.indexOf('SITUAÇÃO') : cabecalho.indexOf('DS_SITUACAO'),
+    votos: cabecalho.indexOf('VOTOS') !== -1 ? cabecalho.indexOf('VOTOS') : cabecalho.indexOf('QT_VOTOS')
   };
 
   const consolidado = {};
   
   for(let i=1; i<linhas.length; i++) {
     const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
-    if (col.length < 6) continue;
+    if (col.length < 4) continue;
     
-    // LÓGICA DE TURNO ATUALIZADA
-    if (cargoAtual === 'prefeito') {
+    // Se o cargo for Prefeito, aplica lógica de turno. Senão, ignora e pega tudo.
+    if (cargoAtual === 'prefeito' && idx.sit !== -1) {
       const situacao = col[idx.sit].toUpperCase();
-      
       if (turnoAtivo === '1') {
-        // No 1T, incluímos quem é 1º TURNO ou qualquer outra coisa (ELEITO, SUPLENTE) exceto 2º TURNO
         if (situacao.includes("2º TURNO")) continue;
       } else {
-        // No 2T, incluímos estritamente apenas quem for 2º TURNO
         if (!situacao.includes("2º TURNO")) continue;
       }
     }
 
-    const cid = col[idx.mun].toUpperCase();
-    const nome = col[idx.cand].toUpperCase();
-    const part = col[idx.part].toUpperCase();
-    const votos = parseInt(col[idx.votos].replace(/\D/g,'')) || 0;
+    const cid = col[idx.mun]?.toUpperCase();
+    const nome = col[idx.cand]?.toUpperCase();
+    const part = col[idx.part]?.toUpperCase();
+    const votosStr = col[idx.votos] || "0";
+    const votos = parseInt(votosStr.replace(/\D/g,'')) || 0;
 
+    if (!cid || !nome) continue;
     if (!consolidado[cid]) consolidado[cid] = {};
     if (!consolidado[cid][nome]) consolidado[cid][nome] = { nome, part, votos: 0 };
     consolidado[cid][nome].votos += votos;
@@ -232,7 +236,10 @@ function getEstilo(f) {
 function atualizarRanking() {
   const container = document.getElementById('ranking');
   container.innerHTML = '';
-  if (!dadosAtivos) return;
+  if (!dadosAtivos || Object.keys(dadosAtivos).length === 0) {
+    container.innerHTML = '<div style="color:var(--accent); font-size:10px; padding:20px;">Sem dados disponíveis</div>';
+    return;
+  }
 
   let listaMostrada = [];
   if (munSelecionado) {
