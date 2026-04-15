@@ -14,11 +14,12 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-  header { display: flex; align-items: center; gap: 12px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; flex-wrap: wrap; }
+  header { display: flex; align-items: center; gap: 10px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; flex-wrap: wrap; }
   .sel-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; }
   .sel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   
-  .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 11px; width: 140px; }
+  .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 11px; width: 130px; }
+  .input-mun { width: 160px; border-color: var(--accent); }
 
   .main { display: flex; flex: 1; overflow: hidden; position: relative; }
   #map { flex: 1; background: #07090d; }
@@ -32,15 +33,11 @@
   .bar-bg { background: #000; height: 5px; border-radius: 2px; }
   .bar-fill { height: 100%; transition: width 0.5s; border-radius: 2px; }
 
-  /* Números Dinâmicos no Mapa */
   .vote-label {
     font-family: 'IBM Plex Mono', monospace !important;
-    font-weight: 600 !important;
-    color: rgba(255,255,255,0.9) !important;
-    text-shadow: 0 0 3px #000;
-    font-size: 10px !important;
+    font-weight: 600 !important; color: rgba(255,255,255,0.9) !important;
+    text-shadow: 0 0 3px #000; font-size: 10px !important;
     background: none !important; border: none !important; box-shadow: none !important;
-    transition: opacity 0.2s;
   }
 
   .legend {
@@ -62,8 +59,13 @@
 <header>
   <div id="cargoSelector" style="display:flex; gap:4px;"></div>
   <div style="width:1px; height:20px; background:var(--border); margin:0 5px;"></div>
+  
+  <input type="text" id="searchMun" class="input-search input-mun" placeholder="🔍 Buscar Cidade..." onkeyup="if(event.key==='Enter') buscarMunicipio()">
+  
+  <div style="width:1px; height:20px; background:var(--border); margin:0 5px;"></div>
   <input type="text" id="search1" class="input-search" placeholder="Candidato A (Azul)" oninput="filtrarMapa()">
   <input type="text" id="search2" class="input-search" placeholder="Candidato B (Vermelho)" oninput="filtrarMapa()">
+  
   <button class="sel-btn" onclick="limparGeral()">Limpar</button>
   <button class="sel-btn" style="margin-left:auto" onclick="abrirConfig()">⚙ Config</button>
 </header>
@@ -117,11 +119,11 @@ let dadosCache = {};
 let cargoAtivo = 'prefeito';
 let munSelecionado = null;
 let geoLayer;
+let layersMunicipios = {}; // Guardar referência para busca
 
 const map = L.map('map').setView([-24.5, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-// Lógica de Zoom para Números
 map.on('zoomend', () => {
   const zoom = map.getZoom();
   document.querySelectorAll('.vote-label').forEach(el => {
@@ -132,8 +134,7 @@ map.on('zoomend', () => {
 
 async function carregarDados() {
   const cfg = config[cargoAtivo];
-  if (!cfg.pubId) { alert(`Configure o ID para ${cargoAtivo}`); return; }
-  
+  if (!cfg.pubId) return;
   const url = `https://docs.google.com/spreadsheets/d/e/${cfg.pubId}/pub?output=csv&gid=0`;
   try {
     const res = await fetch(url);
@@ -162,28 +163,44 @@ function processarCSV(csv) {
 
 function renderizarMapa() {
   if (geoLayer) map.removeLayer(geoLayer);
+  layersMunicipios = {};
   fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json')
     .then(r => r.json()).then(geo => {
       geoLayer = L.geoJSON(geo, {
         style: f => getEstilo(f),
         onEachFeature: (f, layer) => {
           const cid = f.properties.name.toUpperCase();
+          layersMunicipios[cid] = layer;
           const v = getVotosDestaque(cid);
           if (v > 0) {
             layer.bindTooltip(v.toLocaleString(), { 
               permanent: true, direction: 'center', className: 'vote-label', opacity: map.getZoom() < 8 ? 0 : 1 
             });
           }
-          layer.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
-            munSelecionado = f.properties.name;
-            document.getElementById('sbTitle').innerText = munSelecionado;
-            document.getElementById('sbSub').innerText = CARGOS.find(c=>c.id===cargoAtivo).nome;
-            atualizarRanking();
-          });
+          layer.on('click', () => clicarNoMunicipio(f.properties.name));
         }
       }).addTo(map);
     });
+}
+
+function clicarNoMunicipio(nome) {
+    munSelecionado = nome;
+    document.getElementById('sbTitle').innerText = munSelecionado;
+    document.getElementById('sbSub').innerText = CARGOS.find(c=>c.id===cargoAtivo).nome;
+    atualizarRanking();
+}
+
+function buscarMunicipio() {
+  const busca = document.getElementById('searchMun').value.toUpperCase();
+  const layer = layersMunicipios[busca];
+  if (layer) {
+    const bounds = layer.getBounds();
+    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
+    clicarNoMunicipio(layer.feature.properties.name);
+    layer.openTooltip();
+  } else {
+    alert("Município não encontrado. Verifique a grafia.");
+  }
 }
 
 function getVotosDestaque(cid) {
@@ -242,9 +259,11 @@ function atualizarRanking() {
 function filtrarMapa() { renderizarMapa(); }
 function limparGeral() { 
   munSelecionado = null; 
+  document.getElementById('searchMun').value='';
   document.getElementById('search1').value=''; 
   document.getElementById('search2').value=''; 
   document.getElementById('sbTitle').innerText = "Ranking Estadual";
+  map.setView([-24.5, -51.5], 7);
   atualizarRanking();
   renderizarMapa();
 }
