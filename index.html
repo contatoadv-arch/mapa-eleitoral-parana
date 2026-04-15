@@ -31,6 +31,26 @@
   .main { display: flex; flex: 1; overflow: hidden; position: relative; }
   #map { flex: 1; background: #07090d; }
   
+  /* Estilo da Legenda */
+  .legend {
+    background: rgba(20, 23, 31, 0.9);
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    line-height: 1.5;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  }
+  .legend i {
+    width: 12px;
+    height: 12px;
+    float: left;
+    margin-right: 8px;
+    border-radius: 2px;
+  }
+
   .sidebar { width: 320px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
   .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); }
   .ranking-container { flex: 1; overflow-y: auto; padding: 12px; }
@@ -79,7 +99,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-// IDs das planilhas corrigidos para formato de dados (output=csv)
 const CARGOS = [
   { id: 'prefeito', label: 'PREF', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
   { id: 'vereador', label: 'VER', pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
@@ -105,34 +124,37 @@ let layersMunicipios = {};
 const map = L.map('map', { zoomSnap: 0.1 }).setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
+// Criar a Legenda
+const legend = L.control({position: 'bottomright'});
+legend.onAdd = function (map) {
+    const div = L.DomUtil.create('div', 'legend');
+    div.innerHTML += '<b style="display:block;margin-bottom:5px">PARTIDOS</b>';
+    for (let p in PARTIDO_CORES) {
+        div.innerHTML += `<i style="background:${PARTIDO_CORES[p]}"></i> ${p}<br>`;
+    }
+    div.innerHTML += `<i style="background:#3a3a3a"></i> OUTROS`;
+    return div;
+};
+legend.addTo(map);
+
 async function trocarCargo(id) {
   cargoAtual = id;
   dadosAtivos = null;
   munSelecionado = null;
-  
   document.getElementById('turnoContainer').style.display = (id === 'prefeito') ? 'flex' : 'none';
   document.querySelectorAll('.sel-btn').forEach(b => b.classList.remove('active'));
-  
   if(id === 'prefeito') document.getElementById('btn-prefeito').classList.add('active');
   else document.querySelector(`[data-id="${id}"]`)?.classList.add('active');
-
   document.getElementById('sbTitle').innerText = "Carregando...";
   const cargoCfg = CARGOS.find(c => c.id === id);
-  
-  // A URL deve obrigatoriamente terminar em pub?output=csv para funcionar
   const url = `https://docs.google.com/spreadsheets/d/e/${cargoCfg.pubId}/pub?output=csv&t=${Date.now()}`;
-  
   try {
     const res = await fetch(url);
-    if (!res.ok) throw new Error("Erro ao baixar CSV");
     cacheCSV = await res.text();
     processarCSV(cacheCSV);
     renderizarMapa();
     atualizarRanking();
-  } catch (e) { 
-    console.error("Erro no fetch:", e); 
-    document.getElementById('sbTitle').innerText = "Erro de Link";
-  }
+  } catch (e) { console.error(e); }
 }
 
 function setTurno(t) {
@@ -149,14 +171,8 @@ function setTurno(t) {
 function processarCSV(csv) {
   const linhas = csv.split('\n').filter(l => l.trim() !== "");
   if (linhas.length < 2) return;
-  
   const cabecalho = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
-  
-  // Função para encontrar índice da coluna ignorando acentos ou variações
-  const findIdx = (targets) => {
-    return cabecalho.findIndex(h => targets.some(t => h.includes(t)));
-  };
-
+  const findIdx = (targets) => cabecalho.findIndex(h => targets.some(t => h.includes(t)));
   const idx = {
     mun: findIdx(['MUNICIPIO', 'CIDADE', 'NM_MUN']),
     cand: findIdx(['CANDIDATO', 'NM_VOTAVEL', 'NM_CAND']),
@@ -164,33 +180,23 @@ function processarCSV(csv) {
     sit: findIdx(['SITUACAO', 'SITUAÇÃO', 'DS_SIT']),
     votos: findIdx(['VOTOS', 'QT_VOTOS', 'QT_VOT'])
   };
-
   const consolidado = {};
-  
   for(let i=1; i<linhas.length; i++) {
     const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
-    
-    // Se for prefeito, aplicamos o filtro de situação
     if (cargoAtual === 'prefeito' && idx.sit !== -1 && col[idx.sit]) {
       const situacao = col[idx.sit].toUpperCase();
-      if (turnoAtivo === '1') {
-        if (situacao.includes("2º TURNO")) continue;
-      } else {
-        if (!situacao.includes("2º TURNO")) continue;
-      }
+      if (turnoAtivo === '1') { if (situacao.includes("2º TURNO")) continue; } 
+      else { if (!situacao.includes("2º TURNO")) continue; }
     }
-
     const cid = col[idx.mun]?.toUpperCase();
     const nome = col[idx.cand]?.toUpperCase();
     const part = col[idx.part]?.toUpperCase() || 'S/P';
     const votos = parseInt((col[idx.votos] || "0").replace(/\D/g,'')) || 0;
-
     if (!cid || !nome) continue;
     if (!consolidado[cid]) consolidado[cid] = {};
     if (!consolidado[cid][nome]) consolidado[cid][nome] = { nome, part, votos: 0 };
     consolidado[cid][nome].votos += votos;
   }
-
   dadosAtivos = {};
   for (let c in consolidado) {
     dadosAtivos[c] = Object.values(consolidado[c]).sort((a,b) => b.votos - a.votos);
@@ -200,7 +206,6 @@ function processarCSV(csv) {
 function renderizarMapa() {
   if (geoLayer) map.removeLayer(geoLayer);
   layersMunicipios = {};
-
   fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json')
     .then(r => r.json()).then(geo => {
       geoLayer = L.geoJSON(geo, {
@@ -232,10 +237,8 @@ function getEstilo(f) {
   const cid = f.properties.name.toUpperCase();
   const lista = (dadosAtivos && dadosAtivos[cid]) ? dadosAtivos[cid] : null;
   if (!lista || lista.length === 0) return { fillColor: '#111', weight: 0.3, fillOpacity: 0.4, color: '#333' };
-  
   const s1 = document.getElementById('search1').value.toUpperCase();
   const s2 = document.getElementById('search2').value.toUpperCase();
-
   if (s1 || s2) {
     const v1 = lista.find(c => c.nome.includes(s1))?.votos || 0;
     const v2 = lista.find(c => c.nome.includes(s2))?.votos || 0;
@@ -249,11 +252,7 @@ function getEstilo(f) {
 function atualizarRanking() {
   const container = document.getElementById('ranking');
   container.innerHTML = '';
-  if (!dadosAtivos || Object.keys(dadosAtivos).length === 0) {
-    container.innerHTML = '<div style="color:var(--accent); font-size:10px; padding:20px;">Dica: Verifique se a planilha está publicada como CSV.</div>';
-    return;
-  }
-
+  if (!dadosAtivos) return;
   let listaMostrada = [];
   if (munSelecionado) {
     listaMostrada = dadosAtivos[munSelecionado.toUpperCase()] || [];
@@ -269,7 +268,6 @@ function atualizarRanking() {
     listaMostrada = Object.values(total).sort((a,b) => b.votos - a.votos);
     document.getElementById('sbTitle').innerText = "Paraná Total";
   }
-
   const maxV = listaMostrada[0]?.votos || 1;
   listaMostrada.slice(0, 50).forEach(c => {
     container.innerHTML += `
@@ -313,7 +311,6 @@ CARGOS.forEach(c => {
   outros.appendChild(btn);
 });
 
-// Inicia com Prefeito
 trocarCargo('prefeito');
 </script>
 </body>
