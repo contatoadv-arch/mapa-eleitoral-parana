@@ -3,66 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa Eleitoral PR — Analítico & Confronto</title>
+    <title>Mapa PR — Performance Mode</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #0a0c10; --surface: #14171f; --surface2: #1f2430;
-            --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; --text2: #8b93a8;
-            --candA: #4f8ef7; --candB: #e63946;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        header { display: flex; align-items: center; gap: 8px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
-        .pref-group { display: flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px; }
-        .sel-btn { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; transition: 0.2s; }
-        .sel-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-        .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px 8px; border-radius: 4px; font-size: 11px; outline: none; }
-        .main { display: flex; flex: 1; overflow: hidden; position: relative; }
+        :root { --bg: #0a0c10; --surface: #14171f; --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; }
+        body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; margin: 0; }
+        header { display: flex; align-items: center; gap: 10px; padding: 10px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
+        .sel-btn { font-family: 'IBM Plex Mono'; font-size: 11px; padding: 5px 10px; border-radius: 4px; border: 1px solid var(--border); background: #1f2430; color: #8b93a8; cursor: pointer; }
+        .sel-btn.active { background: var(--accent); color: #fff; }
+        .main { display: flex; flex: 1; position: relative; }
         #map { flex: 1; background: #07090d; }
-        .sidebar { width: 360px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-        .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); }
-        .content-container { flex: 1; overflow-y: auto; padding: 12px; }
-        .v-section { border-radius: 8px; padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); margin-bottom: 10px; }
-        .v-name { font-family: 'IBM Plex Mono'; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-        .city-row { display: flex; justify-content: space-between; font-size: 10px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .rank-item { margin-bottom: 10px; }
-        .bar-bg { background: #000; height: 5px; border-radius: 2px; margin-top: 4px; }
-        .bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease-out; }
+        .sidebar { width: 350px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+        #loader { position: fixed; top: 60px; left: 0; width: 100%; height: 3px; background: #000; z-index: 2000; display: none; }
+        #loader-inner { width: 0%; height: 100%; background: var(--accent); transition: width 0.3s; }
+        .v-section { border-radius: 8px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); margin: 10px; }
+        .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 6px; border-radius: 4px; font-size: 12px; }
     </style>
 </head>
 <body>
 
+<div id="loader"><div id="loader-inner"></div></div>
+
 <header>
-    <div class="pref-group">
+    <div style="display:flex; gap:4px;">
         <button class="sel-btn active" data-id="prefeito" onclick="trocarCargo('prefeito')">PREF</button>
         <button class="sel-btn" data-id="vereador" onclick="trocarCargo('vereador')">VER</button>
         <button class="sel-btn" data-id="governador" onclick="trocarCargo('governador')">GOV</button>
         <button class="sel-btn" data-id="senador" onclick="trocarCargo('senador')">SEN</button>
-        <button class="sel-btn" data-id="dep_estadual" onclick="trocarCargo('dep_estadual')">DEP.E</button>
-        <button class="sel-btn" data-id="dep_federal" onclick="trocarCargo('dep_federal')">DEP.F</button>
     </div>
     
-    <input type="text" id="searchMun" class="input-search" style="width:100px" placeholder="🔍 Cidade" onkeyup="if(event.key==='Enter') buscarMunicipio()">
-    
-    <div style="display:flex; align-items:center; gap:5px; padding: 3px 8px; background: rgba(255,255,255,0.03); border-radius: 5px; border: 1px solid var(--border);">
-        <input type="text" id="cand1" class="input-search" style="width:120px" placeholder="Candidato A" oninput="processarEntrada()">
-        <span style="font-size:10px; color:var(--text2)">VS</span>
-        <input type="text" id="cand2" class="input-search" style="width:120px" placeholder="Candidato B" oninput="processarEntrada()">
+    <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
+        <input type="text" id="cand1" class="input-search" placeholder="Candidato A" oninput="debounceEntrada()">
+        <span style="font-size:10px;">VS</span>
+        <input type="text" id="cand2" class="input-search" placeholder="Candidato B" oninput="debounceEntrada()">
+        <button onclick="limparCache()" class="sel-btn" style="color:#ff4d4d">Reset</button>
     </div>
-
-    <button onclick="localStorage.clear(); location.reload();" class="sel-btn" style="margin-left:auto; border-color:#e63946; color:#e63946">Reset</button>
 </header>
 
 <div class="main">
     <div id="map"></div>
     <div class="sidebar">
-        <div class="sidebar-header">
-            <div id="sbTitle" style="font-size:14px; font-weight:600;">Carregando...</div>
-            <div id="sbSub" style="font-size:10px; color:var(--accent);">PARANÁ ELEIÇÕES</div>
+        <div style="padding:15px; border-bottom:1px solid var(--border)">
+            <div id="sbTitle" style="font-weight:600">Carregando mapa...</div>
+            <div id="sbSub" style="font-size:11px; color:var(--accent)">AGUARDE...</div>
         </div>
-        <div id="sideContent" class="content-container"></div>
+        <div id="sideContent" style="flex:1; overflow-y:auto; padding:10px;"></div>
     </div>
 </div>
 
@@ -72,51 +58,48 @@ const CARGOS = {
     prefeito: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9',
     vereador: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6',
     governador: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews',
-    senador: '2PACX-1vTwDP_rWXeGuNrZa_P1doV5yqyIKoPLgrXGuZ5E1jGW38zbPyqV3qqCcILV8kX8jNHUqtPaLoh8-6le',
-    dep_estadual: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG',
-    dep_federal: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV'
+    senador: '2PACX-1vTwDP_rWXeGuNrZa_P1doV5yqyIKoPLgrXGuZ5E1jGW38zbPyqV3qqCcILV8kX8jNHUqtPaLoh8-6le'
 };
-
-const CORES_PARTIDO = { 'PT':'#e63946','PL':'#1d6ce0','PSD':'#8338ec','MDB':'#f4a261','PP':'#2ec4b6','UNIÃO':'#fb8500','PODE':'#00ced1','REPUBLICANOS':'#10355a' };
 
 let bancoDados = {}; 
 let cargoAtivo = 'prefeito';
-let munSelecionado = null;
-let geoLayer;
 let geoDataGlobal = null;
+let timerBusca;
 
-const map = L.map('map', { zoomSnap: 0.5, preferCanvas: true }).setView([-24.8, -51.5], 7);
+const map = L.map('map', { zoomSnap: 0.5 }).setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
 async function init() {
-    try {
-        const resp = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
-        geoDataGlobal = await resp.json();
-        await carregarCargo(cargoAtivo);
-    } catch (e) {
-        document.getElementById('sbTitle').innerText = "ERRO AO INICIAR";
-    }
+    mostrarLoader(20);
+    const resp = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
+    geoDataGlobal = await resp.json();
+    mostrarLoader(50);
+    await carregarCargo(cargoAtivo);
 }
 
 async function carregarCargo(id) {
-    document.getElementById('sbTitle').innerText = "BAIXANDO...";
-    const cacheKey = `v6_${id}`;
+    mostrarLoader(60);
+    const cacheKey = `v_fast_${id}`;
     let csv = localStorage.getItem(cacheKey);
     
     if (!csv) {
+        document.getElementById('sbSub').innerText = "BAIXANDO DA NUVEM...";
         const res = await fetch(`https://docs.google.com/spreadsheets/d/e/${CARGOS[id]}/pub?output=csv&t=${Date.now()}`);
         csv = await res.text();
-        if (csv.length > 200) localStorage.setItem(cacheKey, csv);
+        if (csv.length > 500) localStorage.setItem(cacheKey, csv);
     }
     
-    processarCSV(id, csv);
-    processarEntrada();
+    document.getElementById('sbSub').innerText = "PROCESSANDO...";
+    setTimeout(() => { // Delay para não travar a UI
+        processarCSV(id, csv);
+        processarEntrada();
+        mostrarLoader(100);
+    }, 100);
 }
 
 function processarCSV(cargoId, csv) {
     const linhas = csv.split('\n');
     const cab = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
-    
     const idx = {
         mun: cab.findIndex(h => h.includes('MUNICIPIO') || h.includes('NM_MUN')),
         cand: cab.findIndex(h => h.includes('CANDIDATO') || h.includes('NM_VOTAVEL')),
@@ -136,32 +119,33 @@ function processarCSV(cargoId, csv) {
     });
 }
 
+function debounceEntrada() {
+    clearTimeout(timerBusca);
+    timerBusca = setTimeout(processarEntrada, 500); // Só processa 0.5s após parar de digitar
+}
+
 function processarEntrada() {
     const b1 = document.getElementById('cand1').value.toUpperCase();
     const b2 = document.getElementById('cand2').value.toUpperCase();
     const isConf = b1.length >= 3 && b2.length >= 3;
     
-    desenharMapa(isConf, b1, b2);
-    if (isConf) renderConfronto(b1, b2);
-    else renderRanking();
+    atualizarMapa(isConf, b1, b2);
+    document.getElementById('sbTitle').innerText = isConf ? "Confronto Direto" : "Ranking Geral";
+    document.getElementById('sbSub').innerText = cargoAtivo.toUpperCase();
 }
 
-function desenharMapa(isConf, b1, b2) {
-    if (geoLayer) map.removeLayer(geoLayer);
-    geoLayer = L.geoJSON(geoDataGlobal, {
+function atualizarMapa(isConf, b1, b2) {
+    if (window.geoLayer) map.removeLayer(window.geoLayer);
+    window.geoLayer = L.geoJSON(geoDataGlobal, {
         style: f => {
             const cid = f.properties.name.toUpperCase();
             if (isConf) {
                 const f1 = getForca(cid, b1)?.f || 0;
                 const f2 = getForca(cid, b2)?.f || 0;
-                if (f1 === 0 && f2 === 0) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3 };
+                if (f1 + f2 === 0) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3 };
                 return { fillColor: mixColors('#4f8ef7', '#e63946', f2/(f1+f2)), fillOpacity: 0.8, weight: 0.5, color: '#fff' };
             }
-            const top = (bancoDados[cid]?.[cargoAtivo]?.cands || []).sort((a,b) => b.v - a.v)[0];
-            return { fillColor: CORES_PARTIDO[top?.p] || '#333', fillOpacity: 0.7, weight: 0.2, color: '#000' };
-        },
-        onEachFeature: (f, l) => {
-            l.on('click', () => { munSelecionado = f.properties.name; processarEntrada(); });
+            return { fillColor: '#333', fillOpacity: 0.4, weight: 0.2, color: '#444' };
         }
     }).addTo(map);
 }
@@ -175,56 +159,6 @@ function getForca(cid, busca) {
     return null;
 }
 
-function renderRanking() {
-    document.getElementById('sbTitle').innerText = munSelecionado || "Paraná Total";
-    const container = document.getElementById('sideContent');
-    container.innerHTML = '';
-    let lista = [];
-    if (munSelecionado) {
-        lista = [...(bancoDados[munSelecionado.toUpperCase()]?.[cargoAtivo]?.cands || [])];
-    } else {
-        const sum = {};
-        Object.values(bancoDados).forEach(cid => {
-            (cid[cargoAtivo]?.cands || []).forEach(c => {
-                if (!sum[c.n]) sum[c.n] = { ...c, v: 0 };
-                sum[c.n].v += c.v;
-            });
-        });
-        lista = Object.values(sum);
-    }
-    lista.sort((a,b) => b.v - a.v).slice(0, 30).forEach(c => {
-        container.innerHTML += `<div class="rank-item">
-            <div style="display:flex; justify-content:space-between; font-size:10px;"><span>${c.n}</span><b>${c.v.toLocaleString()}</b></div>
-            <div class="bar-bg"><div class="bar-fill" style="width:${(c.v/lista[0].v)*100}%; background:${CORES_PARTIDO[c.p]||'#555'}"></div></div>
-        </div>`;
-    });
-}
-
-function renderConfronto(b1, b2) {
-    document.getElementById('sbTitle').innerText = "Confronto de Força";
-    const container = document.getElementById('sideContent');
-    const calc = (b) => {
-        let cidades = []; let total = 0; let nome = "";
-        for (let cid in bancoDados) {
-            const res = getForca(cid, b);
-            if (res) { cidades.push({ n: cid, f: res.f }); total += res.v; nome = res.n; }
-        }
-        return { top: cidades.sort((a,b) => b.f - a.f).slice(0, 5), total, nome };
-    };
-    const r1 = calc(b1); const r2 = calc(b2);
-    container.innerHTML = `
-        <div class="v-section" style="border-left:4px solid var(--candA)">
-            <div class="v-name" style="color:var(--candA)">${r1.nome}</div>
-            <div style="font-size:10px; margin:5px 0">${r1.total.toLocaleString()} votos totais</div>
-            ${r1.top.map(c => `<div class="city-row"><span>${c.n}</span><b>${c.f.toFixed(1)}%</b></div>`).join('')}
-        </div>
-        <div class="v-section" style="border-left:4px solid var(--candB)">
-            <div class="v-name" style="color:var(--candB)">${r2.nome}</div>
-            <div style="font-size:10px; margin:5px 0">${r2.total.toLocaleString()} votos totais</div>
-            ${r2.top.map(c => `<div class="city-row"><span>${c.n}</span><b>${c.f.toFixed(1)}%</b></div>`).join('')}
-        </div>`;
-}
-
 function mixColors(c1, c2, w) {
     const f = (c) => parseInt(c, 16);
     const r = Math.round(f(c1.slice(1,3))*(1-w) + f(c2.slice(1,3))*w);
@@ -233,16 +167,21 @@ function mixColors(c1, c2, w) {
     return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
+function mostrarLoader(p) {
+    const l = document.getElementById('loader');
+    const li = document.getElementById('loader-inner');
+    l.style.display = 'block';
+    li.style.width = p + '%';
+    if (p >= 100) setTimeout(() => l.style.display = 'none', 500);
+}
+
 function trocarCargo(id) {
     cargoAtivo = id;
     document.querySelectorAll('.sel-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
     carregarCargo(id);
 }
 
-function buscarMunicipio() {
-    const b = document.getElementById('searchMun').value.toUpperCase();
-    if (b) { munSelecionado = b; processarEntrada(); }
-}
+function limparCache() { localStorage.clear(); location.reload(); }
 
 init();
 </script>
