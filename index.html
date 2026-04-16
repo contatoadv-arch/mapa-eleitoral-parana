@@ -1,193 +1,127 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mapa Eleitoral PR — Força Relativa</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root { --bg: #0a0c10; --surface: #14171f; --surface2: #1f2430; --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; --text2: #8b93a8; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-  header { display: flex; align-items: center; gap: 10px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
-  .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; outline: none; }
-  .status-badge { font-family: 'IBM Plex Mono', monospace; font-size: 9px; padding: 4px 8px; border-radius: 3px; background: #1a1e2e; color: #4f8ef7; border: 1px solid #2a3148; min-width: 120px; text-align: center; }
-  #progress-container { position: absolute; top: 48px; left: 0; width: 100%; height: 3px; background: #000; z-index: 1001; }
-  #progress-bar { width: 0%; height: 100%; background: var(--accent); transition: width 0.2s; }
-  .main { display: flex; flex: 1; overflow: hidden; position: relative; }
-  #map { flex: 1; background: #07090d; }
-  .sidebar { width: 320px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-  .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); }
-  .ranking-container { flex: 1; overflow-y: auto; padding: 12px; }
-  .comparison-card { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid var(--border); }
-  .comp-row { display: flex; justify-content: space-between; font-size: 10px; font-family: 'IBM Plex Mono'; margin-top: 5px; }
-  .force-bar { height: 6px; background: #000; border-radius: 3px; margin-top: 6px; overflow: hidden; }
-</style>
+    <meta charset="UTF-8">
+    <title>Mapa Eleitoral PR — Analítico</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+    <style>
+        :root { --bg: #0a0c10; --surface: #14171f; --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        header { height: 50px; background: var(--surface); display: flex; align-items: center; padding: 0 15px; gap: 10px; border-bottom: 1px solid var(--border); z-index: 1000; }
+        .main { display: flex; flex: 1; position: relative; }
+        #map { flex: 1; background: #07090d; }
+        .sidebar { width: 300px; background: var(--surface); border-left: 1px solid var(--border); padding: 15px; }
+        .status-badge { font-size: 10px; padding: 4px 8px; background: #000; border: 1px solid var(--border); color: var(--accent); }
+        #progress-bar { position: absolute; top: 50px; left: 0; height: 3px; background: var(--accent); width: 0%; z-index: 1001; transition: width 0.2s; }
+        input { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px; border-radius: 4px; }
+    </style>
 </head>
 <body>
 
 <header>
-  <div class="status-badge" id="loadStatus">INICIANDO...</div>
-  <input type="text" id="searchMun" class="input-search" style="width:110px" placeholder="🔍 Cidade..." onkeyup="if(event.key==='Enter') buscarMunicipio()">
-  <div style="display:flex; align-items:center; gap:8px; padding: 4px 10px; background: rgba(255,255,255,0.03); border-radius: 5px; border: 1px solid var(--border);">
-    <input type="text" id="cand1" class="input-search" style="width:140px" placeholder="Candidato A" oninput="comparar()">
-    <span style="font-size:10px; font-weight:bold; color:var(--text2)">VS</span>
-    <input type="text" id="cand2" class="input-search" style="width:140px" placeholder="Candidato B" oninput="comparar()">
-  </div>
-  <button onclick="limparTudo()" style="margin-left:auto; padding: 6px 12px; font-size:10px; background:#e63946; color:white; border:none; border-radius:4px; cursor:pointer;">LIMPAR CACHE</button>
+    <div class="status-badge" id="loadStatus">INICIANDO...</div>
+    <div style="margin-left:auto; display:flex; gap:10px;">
+        <input type="text" id="c1" placeholder="Candidato A" oninput="comparar()">
+        <input type="text" id="c2" placeholder="Candidato B" oninput="comparar()">
+        <button onclick="localStorage.clear(); location.reload();" style="background:red; color:white; border:none; cursor:pointer; padding:5px 10px; border-radius:4px;">Reset</button>
+    </div>
 </header>
 
-<div id="progress-container"><div id="progress-bar"></div></div>
+<div id="progress-bar"></div>
 
 <div class="main">
-  <div id="map"></div>
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <div id="sbTitle" style="font-size:14px; font-weight:600;">Comparação de Força</div>
-      <div id="sbSub" style="font-size:10px; color:var(--accent);">Dados Por Cidade</div>
+    <div id="map"></div>
+    <div class="sidebar">
+        <h3 id="sbTitle" style="margin:0; font-size:16px;">Paraná</h3>
+        <p id="sbSub" style="font-size:12px; color:var(--accent);">Aguardando dados...</p>
+        <hr border="0" style="border-top:1px solid var(--border); margin:15px 0;">
+        <div id="ranking"></div>
     </div>
-    <div id="ranking" class="ranking-container"></div>
-  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const CARGOS = [
-  { id: 'prefeito', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
-  { id: 'vereador', pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
-  { id: 'governador', pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' }
+    { id: 'prefeito', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' }
 ];
 
-let bancoDados = {}; 
-let geoData = null;
-let munSelecionado = null;
-let layersMunicipios = {};
-let geoLayer;
-
-const map = L.map('map', { zoomSnap: 0.5, preferCanvas: true }).setView([-24.8, -51.5], 7);
+let db = {};
+let geoJSON = null;
+const map = L.map('map').setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-function updateProgress(p) { document.getElementById('progress-bar').style.width = p + '%'; }
-
 async function init() {
-  const status = document.getElementById('loadStatus');
-  status.innerText = "CARREGANDO MAPA...";
-  const geoRes = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
-  geoData = await geoRes.json();
-  
-  await carregarCargosSequencialmente();
-}
-
-async function carregarCargosSequencialmente() {
-  for (let cargo of CARGOS) {
-    const status = document.getElementById('loadStatus');
-    status.innerText = `LENDO ${cargo.id.toUpperCase()}...`;
+    document.getElementById('progress-bar').style.width = '20%';
+    const geoRes = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
+    geoJSON = await geoRes.json();
     
-    let csv = localStorage.getItem('data_v4_' + cargo.id);
-    if (!csv) {
-      const resp = await fetch(`https://docs.google.com/spreadsheets/d/e/${cargo.pubId}/pub?output=csv&t=${Date.now()}`);
-      csv = await resp.text();
-      localStorage.setItem('data_v4_' + cargo.id, csv);
+    for (let cargo of CARGOS) {
+        document.getElementById('loadStatus').innerText = `BAIXANDO ${cargo.id.toUpperCase()}...`;
+        let csv = localStorage.getItem('data_' + cargo.id);
+        if (!csv) {
+            const res = await fetch(`https://docs.google.com/spreadsheets/d/e/${cargo.pubId}/pub?output=csv&t=${Date.now()}`);
+            csv = await res.text();
+            localStorage.setItem('data_' + cargo.id, csv);
+        }
+        await processar(csv, cargo.id);
     }
-    await processarChunk(csv, cargo.id);
-  }
-  document.getElementById('loadStatus').innerText = "SISTEMA PRONTO";
-  renderizarMapa();
+    
+    document.getElementById('loadStatus').innerText = "SISTEMA PRONTO";
+    document.getElementById('progress-bar').style.width = '100%';
+    setTimeout(() => document.getElementById('progress-bar').style.opacity = '0', 500);
+    desenhar();
 }
 
-function processarChunk(csv, cargoId) {
-  return new Promise(resolve => {
-    const linhas = csv.split('\n');
-    let i = 1;
-    function chunk() {
-      const limit = Math.min(i + 800, linhas.length);
-      for (; i < limit; i++) {
-        const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
-        if (col.length < 3) continue;
-        const mun = col[0].toUpperCase();
-        if (!bancoDados[mun]) bancoDados[mun] = {};
-        if (!bancoDados[mun][cargoId]) bancoDados[mun][cargoId] = { candidatos: [], teto: 0 };
-        const v = parseInt(col[2].replace(/\D/g,'')) || 0;
-        bancoDados[mun][cargoId].candidatos.push({ n: col[1].toUpperCase(), v: v });
-        if (v > bancoDados[mun][cargoId].teto) bancoDados[mun][cargoId].teto = v;
-      }
-      if (i < linhas.length) { setTimeout(chunk, 1); } else { resolve(); }
-    }
-    chunk();
-  });
+function processar(csv, cargoId) {
+    return new Promise(resolve => {
+        const linhas = csv.split('\n');
+        let i = 1;
+        function chunk() {
+            const limit = Math.min(i + 1000, linhas.length);
+            for (; i < limit; i++) {
+                const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
+                if (col.length < 3) continue;
+                const mun = col[0].toUpperCase();
+                const v = parseInt(col[2].replace(/\D/g,'')) || 0;
+                if (!db[mun]) db[mun] = {};
+                if (!db[mun][cargoId]) db[mun][cargoId] = { cands: [], teto: 0 };
+                db[mun][cargoId].cands.push({ n: col[1].toUpperCase(), v: v });
+                if (v > db[mun][cargoId].teto) db[mun][cargoId].teto = v;
+            }
+            if (i < linhas.length) { setTimeout(chunk, 1); } else { resolve(); }
+        }
+        chunk();
+    });
 }
 
-function getForca(cid, busca) {
-  if (!bancoDados[cid] || !busca || busca.length < 3) return null;
-  const b = busca.toUpperCase();
-  for (let cargoId in bancoDados[cid]) {
-    const achou = bancoDados[cid][cargoId].candidatos.find(c => c.n.includes(b));
-    if (achou) return { f: (achou.v / bancoDados[cid][cargoId].teto) * 100, v: achou.v, c: cargoId };
-  }
-  return null;
-}
-
-function renderizarMapa() {
-  if (geoLayer) map.removeLayer(geoLayer);
-  geoLayer = L.geoJSON(geoData, {
-    style: f => {
-      const cid = f.properties.name.toUpperCase();
-      const b1 = document.getElementById('cand1').value;
-      const b2 = document.getElementById('cand2').value;
-      const d1 = getForca(cid, b1);
-      const d2 = getForca(cid, b2);
-      if (!d1 && !d2) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3, color: '#333' };
-      const f1 = d1?.f || 0; const f2 = d2?.f || 0;
-      const ratio = f2 / (f1 + f2 || 1);
-      return { fillColor: mixColors('#4f8ef7', '#e63946', ratio), fillOpacity: 0.7, weight: 0.5, color: '#fff' };
-    },
-    onEachFeature: (f, layer) => {
-      layersMunicipios[f.properties.name.toUpperCase()] = layer;
-      layer.on('click', () => { munSelecionado = f.properties.name; atualizarRanking(); });
-    }
-  }).addTo(map);
+function desenhar() {
+    if (window.camada) map.removeLayer(window.camada);
+    window.camada = L.geoJSON(geoJSON, {
+        style: f => {
+            const cid = f.properties.name.toUpperCase();
+            const b1 = document.getElementById('c1').value.toUpperCase();
+            const b2 = document.getElementById('c2').value.toUpperCase();
+            
+            if (b1.length < 3 || b2.length < 3) return { color: '#2a3148', weight: 1, fillColor: '#1f2430', fillOpacity: 0.6 };
+            
+            const v1 = (db[cid]?.prefeito?.cands.find(c => c.n.includes(b1))?.v || 0) / (db[cid]?.prefeito?.teto || 1);
+            const v2 = (db[cid]?.prefeito?.cands.find(c => c.n.includes(b2))?.v || 0) / (db[cid]?.prefeito?.teto || 1);
+            
+            const ratio = v2 / (v1 + v2 || 1);
+            return { fillColor: mixColors('#4f8ef7', '#e63946', ratio), fillOpacity: 0.8, weight: 0.5, color: '#fff' };
+        }
+    }).addTo(map);
 }
 
 function mixColors(c1, c2, w) {
-  const f = (c) => parseInt(c, 16);
-  const r = Math.round(f(c1.slice(1,3))*(1-w) + f(c2.slice(1,3))*w);
-  const g = Math.round(f(c1.slice(3,5))*(1-w) + f(c2.slice(3,5))*w);
-  const b = Math.round(f(c1.slice(5,7))*(1-w) + f(c2.slice(5,7))*w);
-  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    const f = (c) => parseInt(c, 16);
+    const r = Math.round(f(c1.slice(1,3))*(1-w) + f(c2.slice(1,3))*w);
+    const g = Math.round(f(c1.slice(3,5))*(1-w) + f(c2.slice(3,5))*w);
+    const b = Math.round(f(c1.slice(5,7))*(1-w) + f(c2.slice(5,7))*w);
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
 
-function comparar() { renderizarMapa(); atualizarRanking(); }
-
-function atualizarRanking() {
-  const container = document.getElementById('ranking');
-  if (!munSelecionado) return;
-  const b1 = document.getElementById('cand1').value;
-  const b2 = document.getElementById('cand2').value;
-  const d1 = getForca(munSelecionado.toUpperCase(), b1);
-  const d2 = getForca(munSelecionado.toUpperCase(), b2);
-  document.getElementById('sbTitle').innerText = munSelecionado;
-  container.innerHTML = `
-    <div class="comparison-card" style="border-left:4px solid #4f8ef7">
-      <div style="font-size:11px; font-weight:600">${b1 || '---'}</div>
-      <div class="comp-row"><span>${d1?.c || '-'}</span> <b>${d1?.v.toLocaleString() || 0} v</b></div>
-      <div class="comp-row"><span>FORÇA</span> <b>${d1?.f.toFixed(1) || 0}%</b></div>
-      <div class="force-bar"><div style="width:${d1?.f || 0}%; background:#4f8ef7; height:100%"></div></div>
-    </div>
-    <div class="comparison-card" style="border-left:4px solid #e63946">
-      <div style="font-size:11px; font-weight:600">${b2 || '---'}</div>
-      <div class="comp-row"><span>${d2?.c || '-'}</span> <b>${d2?.v.toLocaleString() || 0} v</b></div>
-      <div class="comp-row"><span>FORÇA</span> <b>${d2?.f.toFixed(1) || 0}%</b></div>
-      <div class="force-bar"><div style="width:${d2?.f || 0}%; background:#e63946; height:100%"></div></div>
-  `;
-}
-
-function buscarMunicipio() {
-  const b = document.getElementById('searchMun').value.toUpperCase();
-  if (layersMunicipios[b]) { map.fitBounds(layersMunicipios[b].getBounds()); munSelecionado = b; atualizarRanking(); }
-}
-
-function limparTudo() { localStorage.clear(); location.reload(); }
+function comparar() { desenhar(); }
 
 init();
 </script>
