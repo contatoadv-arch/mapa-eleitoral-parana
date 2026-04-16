@@ -2,129 +2,115 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Mapa Eleitoral PR — Estável</title>
+    <title>Mapa PR - Versão Estável</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
     <style>
-        :root { --bg: #0a0c10; --surface: #14171f; --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; }
-        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        header { height: 50px; background: var(--surface); display: flex; align-items: center; padding: 0 15px; gap: 10px; border-bottom: 1px solid var(--border); z-index: 1000; }
-        .main { display: flex; flex: 1; position: relative; }
+        body { margin: 0; background: #0a0c10; color: white; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        header { height: 50px; background: #14171f; display: flex; align-items: center; padding: 0 15px; gap: 10px; border-bottom: 1px solid #2a3148; }
         #map { flex: 1; background: #07090d; }
-        .sidebar { width: 300px; background: var(--surface); border-left: 1px solid var(--border); padding: 15px; }
-        .status-badge { font-size: 10px; padding: 4px 8px; background: #000; border: 1px solid var(--border); color: var(--accent); }
-        input { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px; border-radius: 4px; width: 120px; }
+        .sidebar { width: 280px; background: #14171f; border-left: 1px solid #2a3148; padding: 15px; font-size: 13px; }
+        input { background: #000; border: 1px solid #2a3148; color: #fff; padding: 5px; width: 130px; }
+        .status { font-size: 10px; color: #4f8ef7; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="status-badge" id="loadStatus">AGUARDANDO...</div>
+    <span id="loadStatus" class="status">INICIANDO...</span>
     <div style="margin-left:auto; display:flex; gap:10px;">
-        <input type="text" id="c1" placeholder="Candidato A" oninput="comparar()">
-        <input type="text" id="c2" placeholder="Candidato B" oninput="comparar()">
-        <button onclick="limparTudo()" style="background:#e63946; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Limpar Tudo</button>
+        <input type="text" id="c1" placeholder="Candidato A" oninput="desenhar()">
+        <input type="text" id="c2" placeholder="Candidato B" oninput="desenhar()">
+        <button onclick="localStorage.clear(); location.reload();" style="cursor:pointer; background:#e63946; color:white; border:none; padding:5px 10px; border-radius:4px;">Limpar Cache</button>
     </div>
 </header>
 
-<div class="main">
+<div style="display:flex; flex:1; overflow:hidden;">
     <div id="map"></div>
     <div class="sidebar">
-        <h3 id="sbTitle">Paraná</h3>
-        <p id="sbSub" style="color:var(--accent)">Carregando dados...</p>
-        <div id="ranking" style="font-size:12px; margin-top:20px;"></div>
+        <h3 id="munNome">Paraná</h3>
+        <p id="munInfo">Digite os nomes para comparar.</p>
     </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-// USANDO APENAS PREFEITO PARA TESTAR ESTABILIDADE
-const CARGOS = { prefeito: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' };
-
-let db = {};
+const URL_PLANILHA = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9/pub?output=csv';
+let bancoDados = {};
 let geoJSON = null;
+
 const map = L.map('map').setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-async function init() {
-    const status = document.getElementById('loadStatus');
-    status.innerText = "LENDO GEOGRAFIA...";
-    
-    const geoRes = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
-    geoJSON = await geoRes.json();
-
-    status.innerText = "BAIXANDO PLANILHA...";
-    try {
-        // IMPORTANTE: NÃO salvamos no localStorage aqui para evitar o QuotaExceededError
-        const resp = await fetch(`https://docs.google.com/spreadsheets/d/e/${CARGOS.prefeito}/pub?output=csv&t=${Date.now()}`);
-        const csv = await resp.text();
-        await processarSemCache(csv);
-    } catch (e) {
-        status.innerText = "ERRO NO DOWNLOAD";
-    }
+// Função para limpar nomes (remove espaços e acentos)
+function simplificar(texto) {
+    return texto.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
-function processarSemCache(csv) {
-    return new Promise(resolve => {
+async function init() {
+    try {
+        const gRes = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
+        geoJSON = await gRes.json();
+        
+        document.getElementById('loadStatus').innerText = "BAIXANDO DADOS...";
+        const pRes = await fetch(`${URL_PLANILHA}&t=${Date.now()}`);
+        const csv = await pRes.text();
+        
         const linhas = csv.split('\n');
-        let i = 1;
-        function chunk() {
-            const limit = Math.min(i + 1000, linhas.length);
-            for (; i < limit; i++) {
-                const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
-                if (col.length < 3) continue;
-                
-                const mun = col[0].toUpperCase();
-                const cand = col[1].toUpperCase();
-                const votos = parseInt(col[2].replace(/\D/g,'')) || 0;
+        linhas.slice(1).forEach(linha => {
+            const col = linha.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
+            if (col.length < 3) return;
+            
+            const mun = simplificar(col[0]);
+            const cand = simplificar(col[1]);
+            const votos = parseInt(col[2].replace(/\D/g,'')) || 0;
 
-                if (!db[mun]) db[mun] = { cands: [], teto: 0 };
-                db[mun].cands.push({ n: cand, v: votos });
-                if (votos > db[mun].teto) db[mun].teto = votos;
-            }
-            if (i < linhas.length) {
-                setTimeout(chunk, 1);
-            } else {
-                document.getElementById('loadStatus').innerText = "PRONTO";
-                document.getElementById('sbSub').innerText = "Dados carregados na memória.";
-                desenhar();
-                resolve();
-            }
-        }
-        chunk();
-    });
+            if (!bancoDados[mun]) bancoDados[mun] = { cands: [], teto: 0 };
+            bancoDados[mun].cands.push({ n: cand, v: votos });
+            if (votos > bancoDados[mun].teto) bancoDados[mun].teto = votos;
+        });
+
+        document.getElementById('loadStatus').innerText = "SISTEMA PRONTO";
+        desenhar();
+    } catch (e) {
+        document.getElementById('loadStatus').innerText = "ERRO AO CARREGAR";
+    }
 }
 
 function desenhar() {
     if (window.camada) map.removeLayer(window.camada);
+    
+    const b1 = simplificar(document.getElementById('c1').value);
+    const b2 = simplificar(document.getElementById('c2').value);
+
     window.camada = L.geoJSON(geoJSON, {
         style: f => {
-            const cid = f.properties.name.toUpperCase();
-            const b1 = document.getElementById('c1').value.toUpperCase();
-            const b2 = document.getElementById('c2').value.toUpperCase();
+            const munMap = simplificar(f.properties.name);
+            const dados = bancoDados[munMap];
             
-            if (b1.length < 3 || b2.length < 3) return { color: '#2a3148', weight: 1, fillColor: '#1f2430', fillOpacity: 0.4 };
-            
-            const v1 = (db[cid]?.cands.find(c => c.n.includes(b1))?.v || 0) / (db[cid]?.teto || 1);
-            const v2 = (db[cid]?.cands.find(c => c.n.includes(b2))?.v || 0) / (db[cid]?.teto || 1);
+            if (!dados || b1.length < 3 || b2.length < 3) 
+                return { color: '#2a3148', weight: 0.5, fillColor: '#1f2430', fillOpacity: 0.4 };
+
+            const v1 = (dados.cands.find(c => c.n.includes(b1))?.v || 0) / (dados.teto || 1);
+            const v2 = (dados.cands.find(c => c.n.includes(b2))?.v || 0) / (dados.teto || 1);
             
             if (v1 + v2 === 0) return { fillColor: '#111', fillOpacity: 0.3, weight: 0.5 };
             
             const ratio = v2 / (v1 + v2);
-            return { fillColor: mixColors('#4f8ef7', '#e63946', ratio), fillOpacity: 0.8, weight: 0.5, color: '#fff' };
+            return { 
+                fillColor: ratio > 0.5 ? '#e63946' : '#4f8ef7', 
+                fillOpacity: Math.max(0.3, Math.abs(ratio - 0.5) * 2),
+                weight: 1, color: '#fff' 
+            };
+        },
+        onEachFeature: (f, layer) => {
+            layer.on('click', () => {
+                const mun = simplificar(f.properties.name);
+                document.getElementById('munNome').innerText = f.properties.name;
+                document.getElementById('munInfo').innerText = bancoDados[mun] ? "Dados carregados." : "Sem dados nesta cidade.";
+            });
         }
     }).addTo(map);
 }
-
-function mixColors(c1, c2, w) {
-    const f = (c) => parseInt(c, 16);
-    const r = Math.round(f(c1.slice(1,3))*(1-w) + f(c2.slice(1,3))*w);
-    const g = Math.round(f(c1.slice(3,5))*(1-w) + f(c2.slice(3,5))*w);
-    const b = Math.round(f(c1.slice(5,7))*(1-w) + f(c2.slice(5,7))*w);
-    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-}
-
-function comparar() { desenhar(); }
-function limparTudo() { localStorage.clear(); location.reload(); }
 
 init();
 </script>
