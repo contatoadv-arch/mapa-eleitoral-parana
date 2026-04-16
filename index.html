@@ -8,9 +8,15 @@
         body { margin: 0; background: #0a0c10; color: white; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
         header { height: 50px; background: #14171f; display: flex; align-items: center; padding: 0 15px; gap: 10px; border-bottom: 1px solid #2a3148; }
         #map { flex: 1; background: #07090d; }
-        .sidebar { width: 280px; background: #14171f; border-left: 1px solid #2a3148; padding: 15px; font-size: 13px; }
+        .sidebar { width: 280px; background: #14171f; border-left: 1px solid #2a3148; padding: 15px; font-size: 13px; overflow-y: auto; }
         input { background: #000; border: 1px solid #2a3148; color: #fff; padding: 5px; width: 130px; }
         .status { font-size: 10px; color: #4f8ef7; }
+        .cand-row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; }
+        .cand-bar-wrap { width: 100%; background: #1f2430; border-radius: 3px; height: 8px; margin-top: 3px; }
+        .cand-bar { height: 8px; border-radius: 3px; }
+        .cand-a { background: #4f8ef7; }
+        .cand-b { background: #e63946; }
+        .winner-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; }
     </style>
 </head>
 <body>
@@ -28,7 +34,7 @@
     <div id="map"></div>
     <div class="sidebar">
         <h3 id="munNome">Paraná</h3>
-        <p id="munInfo">Digite os nomes para comparar.</p>
+        <div id="munInfo"><p style="color:#666">Clique em um município.</p></div>
     </div>
 </div>
 
@@ -41,9 +47,14 @@ let geoJSON = null;
 const map = L.map('map').setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-// Função para limpar nomes (remove espaços e acentos)
 function simplificar(texto) {
     return texto.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+// FIX: busca flexível — verifica se um inclui o outro nos dois sentidos
+function matchCand(nomeCandidato, busca) {
+    if (busca.length < 3) return false;
+    return nomeCandidato.includes(busca) || busca.includes(nomeCandidato);
 }
 
 async function init() {
@@ -64,16 +75,35 @@ async function init() {
             const cand = simplificar(col[1]);
             const votos = parseInt(col[2].replace(/\D/g,'')) || 0;
 
-            if (!bancoDados[mun]) bancoDados[mun] = { cands: [], teto: 0 };
-            bancoDados[mun].cands.push({ n: cand, v: votos });
-            if (votos > bancoDados[mun].teto) bancoDados[mun].teto = votos;
+            if (!bancoDados[mun]) bancoDados[mun] = { cands: [], total: 0 };
+            
+            // FIX: agrupa votos se o mesmo candidato aparecer em múltiplas linhas
+            const existing = bancoDados[mun].cands.find(c => c.n === cand);
+            if (existing) {
+                existing.v += votos;
+            } else {
+                bancoDados[mun].cands.push({ n: cand, v: votos });
+            }
+            bancoDados[mun].total += votos;
         });
 
-        document.getElementById('loadStatus').innerText = "SISTEMA PRONTO";
+        // Recalcula o teto (maior votação individual) após agrupar
+        Object.values(bancoDados).forEach(d => {
+            d.teto = Math.max(...d.cands.map(c => c.v));
+        });
+
+        document.getElementById('loadStatus').innerText = `SISTEMA PRONTO · ${Object.keys(bancoDados).length} municípios`;
         desenhar();
     } catch (e) {
+        console.error(e);
         document.getElementById('loadStatus').innerText = "ERRO AO CARREGAR";
     }
+}
+
+function buscarVotos(dados, busca) {
+    if (!dados || busca.length < 3) return 0;
+    const found = dados.cands.find(c => matchCand(c.n, busca));
+    return found ? found.v : 0;
 }
 
 function desenhar() {
@@ -84,29 +114,80 @@ function desenhar() {
 
     window.camada = L.geoJSON(geoJSON, {
         style: f => {
-            const munMap = simplificar(f.properties.name);
-            const dados = bancoDados[munMap];
+            // FIX: usa o mesmo simplificar() para buscar no bancoDados
+            const munKey = simplificar(f.properties.name);
+            const dados = bancoDados[munKey];
             
             if (!dados || b1.length < 3 || b2.length < 3) 
                 return { color: '#2a3148', weight: 0.5, fillColor: '#1f2430', fillOpacity: 0.4 };
 
-            const v1 = (dados.cands.find(c => c.n.includes(b1))?.v || 0) / (dados.teto || 1);
-            const v2 = (dados.cands.find(c => c.n.includes(b2))?.v || 0) / (dados.teto || 1);
+            const v1 = buscarVotos(dados, b1);
+            const v2 = buscarVotos(dados, b2);
             
-            if (v1 + v2 === 0) return { fillColor: '#111', fillOpacity: 0.3, weight: 0.5 };
+            if (v1 + v2 === 0) return { fillColor: '#111', fillOpacity: 0.3, weight: 0.5, color: '#2a3148' };
             
             const ratio = v2 / (v1 + v2);
             return { 
                 fillColor: ratio > 0.5 ? '#e63946' : '#4f8ef7', 
                 fillOpacity: Math.max(0.3, Math.abs(ratio - 0.5) * 2),
-                weight: 1, color: '#fff' 
+                weight: 1, color: '#ffffff44'
             };
         },
         onEachFeature: (f, layer) => {
             layer.on('click', () => {
-                const mun = simplificar(f.properties.name);
+                const munKey = simplificar(f.properties.name);
+                const dados = bancoDados[munKey];
+                
                 document.getElementById('munNome').innerText = f.properties.name;
-                document.getElementById('munInfo').innerText = bancoDados[mun] ? "Dados carregados." : "Sem dados nesta cidade.";
+                
+                if (!dados) {
+                    document.getElementById('munInfo').innerHTML = `<p style="color:#888">Sem dados para este município.<br><small style="color:#555">Chave buscada: ${munKey}</small></p>`;
+                    return;
+                }
+
+                const b1 = simplificar(document.getElementById('c1').value);
+                const b2 = simplificar(document.getElementById('c2').value);
+                const v1 = buscarVotos(dados, b1);
+                const v2 = buscarVotos(dados, b2);
+                const total = dados.total;
+
+                let html = `<p style="color:#666; font-size:11px">Total de votos: <b style="color:#aaa">${total.toLocaleString('pt-BR')}</b></p>`;
+
+                if (b1.length >= 3 || b2.length >= 3) {
+                    if (b1.length >= 3) {
+                        const pct = total > 0 ? ((v1/total)*100).toFixed(1) : 0;
+                        html += `
+                        <div class="cand-row">
+                            <span style="color:#4f8ef7">▲ ${document.getElementById('c1').value}</span>
+                            <span>${v1.toLocaleString('pt-BR')} <small style="color:#666">(${pct}%)</small></span>
+                        </div>
+                        <div class="cand-bar-wrap"><div class="cand-bar cand-a" style="width:${pct}%"></div></div>`;
+                    }
+                    if (b2.length >= 3) {
+                        const pct = total > 0 ? ((v2/total)*100).toFixed(1) : 0;
+                        html += `
+                        <div class="cand-row" style="margin-top:8px">
+                            <span style="color:#e63946">▲ ${document.getElementById('c2').value}</span>
+                            <span>${v2.toLocaleString('pt-BR')} <small style="color:#666">(${pct}%)</small></span>
+                        </div>
+                        <div class="cand-bar-wrap"><div class="cand-bar cand-b" style="width:${pct}%"></div></div>`;
+                    }
+                    if (b1.length >= 3 && b2.length >= 3 && (v1 + v2) > 0) {
+                        const vencedor = v1 > v2 ? document.getElementById('c1').value : document.getElementById('c2').value;
+                        const cor = v1 > v2 ? '#4f8ef7' : '#e63946';
+                        html += `<p style="margin-top:12px">Vencedor: <span style="color:${cor}; font-weight:bold">${vencedor}</span></p>`;
+                    }
+                }
+
+                html += `<hr style="border-color:#2a3148; margin:10px 0"><p style="color:#555; font-size:11px">Todos os candidatos:</p>`;
+                dados.cands
+                    .sort((a,b) => b.v - a.v)
+                    .slice(0, 8)
+                    .forEach(c => {
+                        html += `<div class="cand-row"><span style="color:#aaa">${c.n}</span><span style="color:#666">${c.v.toLocaleString('pt-BR')}</span></div>`;
+                    });
+
+                document.getElementById('munInfo').innerHTML = html;
             });
         }
     }).addTo(map);
