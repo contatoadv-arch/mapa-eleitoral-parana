@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Mapa Eleitoral PR — Analítico</title>
+    <title>Mapa Eleitoral PR — Estável</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
     <style>
         :root { --bg: #0a0c10; --surface: #14171f; --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; }
@@ -12,38 +12,33 @@
         #map { flex: 1; background: #07090d; }
         .sidebar { width: 300px; background: var(--surface); border-left: 1px solid var(--border); padding: 15px; }
         .status-badge { font-size: 10px; padding: 4px 8px; background: #000; border: 1px solid var(--border); color: var(--accent); }
-        #progress-bar { position: absolute; top: 50px; left: 0; height: 3px; background: var(--accent); width: 0%; z-index: 1001; transition: width 0.2s; }
-        input { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px; border-radius: 4px; }
+        input { background: #000; border: 1px solid var(--border); color: #fff; padding: 5px; border-radius: 4px; width: 120px; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="status-badge" id="loadStatus">INICIANDO...</div>
+    <div class="status-badge" id="loadStatus">AGUARDANDO...</div>
     <div style="margin-left:auto; display:flex; gap:10px;">
         <input type="text" id="c1" placeholder="Candidato A" oninput="comparar()">
         <input type="text" id="c2" placeholder="Candidato B" oninput="comparar()">
-        <button onclick="localStorage.clear(); location.reload();" style="background:red; color:white; border:none; cursor:pointer; padding:5px 10px; border-radius:4px;">Reset</button>
+        <button onclick="limparTudo()" style="background:#e63946; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Limpar Tudo</button>
     </div>
 </header>
-
-<div id="progress-bar"></div>
 
 <div class="main">
     <div id="map"></div>
     <div class="sidebar">
-        <h3 id="sbTitle" style="margin:0; font-size:16px;">Paraná</h3>
-        <p id="sbSub" style="font-size:12px; color:var(--accent);">Aguardando dados...</p>
-        <hr border="0" style="border-top:1px solid var(--border); margin:15px 0;">
-        <div id="ranking"></div>
+        <h3 id="sbTitle">Paraná</h3>
+        <p id="sbSub" style="color:var(--accent)">Carregando dados...</p>
+        <div id="ranking" style="font-size:12px; margin-top:20px;"></div>
     </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const CARGOS = [
-    { id: 'prefeito', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' }
-];
+// USANDO APENAS PREFEITO PARA TESTAR ESTABILIDADE
+const CARGOS = { prefeito: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' };
 
 let db = {};
 let geoJSON = null;
@@ -51,28 +46,24 @@ const map = L.map('map').setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
 async function init() {
-    document.getElementById('progress-bar').style.width = '20%';
+    const status = document.getElementById('loadStatus');
+    status.innerText = "LENDO GEOGRAFIA...";
+    
     const geoRes = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
     geoJSON = await geoRes.json();
-    
-    for (let cargo of CARGOS) {
-        document.getElementById('loadStatus').innerText = `BAIXANDO ${cargo.id.toUpperCase()}...`;
-        let csv = localStorage.getItem('data_' + cargo.id);
-        if (!csv) {
-            const res = await fetch(`https://docs.google.com/spreadsheets/d/e/${cargo.pubId}/pub?output=csv&t=${Date.now()}`);
-            csv = await res.text();
-            localStorage.setItem('data_' + cargo.id, csv);
-        }
-        await processar(csv, cargo.id);
+
+    status.innerText = "BAIXANDO PLANILHA...";
+    try {
+        // IMPORTANTE: NÃO salvamos no localStorage aqui para evitar o QuotaExceededError
+        const resp = await fetch(`https://docs.google.com/spreadsheets/d/e/${CARGOS.prefeito}/pub?output=csv&t=${Date.now()}`);
+        const csv = await resp.text();
+        await processarSemCache(csv);
+    } catch (e) {
+        status.innerText = "ERRO NO DOWNLOAD";
     }
-    
-    document.getElementById('loadStatus').innerText = "SISTEMA PRONTO";
-    document.getElementById('progress-bar').style.width = '100%';
-    setTimeout(() => document.getElementById('progress-bar').style.opacity = '0', 500);
-    desenhar();
 }
 
-function processar(csv, cargoId) {
+function processarSemCache(csv) {
     return new Promise(resolve => {
         const linhas = csv.split('\n');
         let i = 1;
@@ -81,14 +72,23 @@ function processar(csv, cargoId) {
             for (; i < limit; i++) {
                 const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
                 if (col.length < 3) continue;
+                
                 const mun = col[0].toUpperCase();
-                const v = parseInt(col[2].replace(/\D/g,'')) || 0;
-                if (!db[mun]) db[mun] = {};
-                if (!db[mun][cargoId]) db[mun][cargoId] = { cands: [], teto: 0 };
-                db[mun][cargoId].cands.push({ n: col[1].toUpperCase(), v: v });
-                if (v > db[mun][cargoId].teto) db[mun][cargoId].teto = v;
+                const cand = col[1].toUpperCase();
+                const votos = parseInt(col[2].replace(/\D/g,'')) || 0;
+
+                if (!db[mun]) db[mun] = { cands: [], teto: 0 };
+                db[mun].cands.push({ n: cand, v: votos });
+                if (votos > db[mun].teto) db[mun].teto = votos;
             }
-            if (i < linhas.length) { setTimeout(chunk, 1); } else { resolve(); }
+            if (i < linhas.length) {
+                setTimeout(chunk, 1);
+            } else {
+                document.getElementById('loadStatus').innerText = "PRONTO";
+                document.getElementById('sbSub').innerText = "Dados carregados na memória.";
+                desenhar();
+                resolve();
+            }
         }
         chunk();
     });
@@ -102,12 +102,14 @@ function desenhar() {
             const b1 = document.getElementById('c1').value.toUpperCase();
             const b2 = document.getElementById('c2').value.toUpperCase();
             
-            if (b1.length < 3 || b2.length < 3) return { color: '#2a3148', weight: 1, fillColor: '#1f2430', fillOpacity: 0.6 };
+            if (b1.length < 3 || b2.length < 3) return { color: '#2a3148', weight: 1, fillColor: '#1f2430', fillOpacity: 0.4 };
             
-            const v1 = (db[cid]?.prefeito?.cands.find(c => c.n.includes(b1))?.v || 0) / (db[cid]?.prefeito?.teto || 1);
-            const v2 = (db[cid]?.prefeito?.cands.find(c => c.n.includes(b2))?.v || 0) / (db[cid]?.prefeito?.teto || 1);
+            const v1 = (db[cid]?.cands.find(c => c.n.includes(b1))?.v || 0) / (db[cid]?.teto || 1);
+            const v2 = (db[cid]?.cands.find(c => c.n.includes(b2))?.v || 0) / (db[cid]?.teto || 1);
             
-            const ratio = v2 / (v1 + v2 || 1);
+            if (v1 + v2 === 0) return { fillColor: '#111', fillOpacity: 0.3, weight: 0.5 };
+            
+            const ratio = v2 / (v1 + v2);
             return { fillColor: mixColors('#4f8ef7', '#e63946', ratio), fillOpacity: 0.8, weight: 0.5, color: '#fff' };
         }
     }).addTo(map);
@@ -122,6 +124,7 @@ function mixColors(c1, c2, w) {
 }
 
 function comparar() { desenhar(); }
+function limparTudo() { localStorage.clear(); location.reload(); }
 
 init();
 </script>
