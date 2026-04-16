@@ -7,31 +7,22 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0a0c10; --surface: #14171f; --surface2: #1f2430;
-    --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; --text2: #8b93a8;
-  }
+  :root { --bg: #0a0c10; --surface: #14171f; --surface2: #1f2430; --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; --text2: #8b93a8; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-
-  header { display: flex; align-items: center; gap: 10px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; flex-wrap: wrap; }
+  header { display: flex; align-items: center; gap: 10px; padding: 8px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
   .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11px; outline: none; }
-  .input-search:focus { border-color: var(--accent); }
-  
   .status-badge { font-family: 'IBM Plex Mono', monospace; font-size: 9px; padding: 4px 8px; border-radius: 3px; background: #1a1e2e; color: #4f8ef7; border: 1px solid #2a3148; min-width: 120px; text-align: center; }
-
+  #progress-container { position: absolute; top: 48px; left: 0; width: 100%; height: 3px; background: #000; z-index: 1001; }
+  #progress-bar { width: 0%; height: 100%; background: var(--accent); transition: width 0.2s; }
   .main { display: flex; flex: 1; overflow: hidden; position: relative; }
   #map { flex: 1; background: #07090d; }
-  
   .sidebar { width: 320px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
   .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); background: var(--surface2); }
   .ranking-container { flex: 1; overflow-y: auto; padding: 12px; }
-  
   .comparison-card { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid var(--border); }
   .comp-row { display: flex; justify-content: space-between; font-size: 10px; font-family: 'IBM Plex Mono'; margin-top: 5px; }
   .force-bar { height: 6px; background: #000; border-radius: 3px; margin-top: 6px; overflow: hidden; }
-  
-  .legend { background: rgba(20, 23, 31, 0.9); padding: 10px; border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 9px; }
 </style>
 </head>
 <body>
@@ -39,22 +30,22 @@
 <header>
   <div class="status-badge" id="loadStatus">INICIANDO...</div>
   <input type="text" id="searchMun" class="input-search" style="width:110px" placeholder="🔍 Cidade..." onkeyup="if(event.key==='Enter') buscarMunicipio()">
-  
   <div style="display:flex; align-items:center; gap:8px; padding: 4px 10px; background: rgba(255,255,255,0.03); border-radius: 5px; border: 1px solid var(--border);">
     <input type="text" id="cand1" class="input-search" style="width:140px" placeholder="Candidato A" oninput="comparar()">
     <span style="font-size:10px; font-weight:bold; color:var(--text2)">VS</span>
     <input type="text" id="cand2" class="input-search" style="width:140px" placeholder="Candidato B" oninput="comparar()">
   </div>
-
-  <button onclick="limparTudo()" style="padding: 6px 12px; font-size:10px; background:#e63946; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">LIMPAR CACHE</button>
+  <button onclick="limparTudo()" style="margin-left:auto; padding: 6px 12px; font-size:10px; background:#e63946; color:white; border:none; border-radius:4px; cursor:pointer;">LIMPAR CACHE</button>
 </header>
+
+<div id="progress-container"><div id="progress-bar"></div></div>
 
 <div class="main">
   <div id="map"></div>
   <div class="sidebar">
     <div class="sidebar-header">
       <div id="sbTitle" style="font-size:14px; font-weight:600;">Comparação de Força</div>
-      <div id="sbSub" style="font-size:10px; color:var(--accent);">Dados Normalizados por Cidade</div>
+      <div id="sbSub" style="font-size:10px; color:var(--accent);">Dados Por Cidade</div>
     </div>
     <div id="ranking" class="ranking-container"></div>
   </div>
@@ -65,249 +56,138 @@
 const CARGOS = [
   { id: 'prefeito', pubId: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9' },
   { id: 'vereador', pubId: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6' },
-  { id: 'governador', pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' },
-  { id: 'senador', pubId: '2PACX-1vTwDP_rWXeGuNrZa_P1doV5yqyIKoPLgrXGuZ5E1jGW38zbPyqV3qqCcILV8kX8jNHUqtPaLoh8-6le' },
-  { id: 'dep_estadual', pubId: '2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG' },
-  { id: 'dep_federal', pubId: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV' }
+  { id: 'governador', pubId: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews' }
 ];
 
-const CORES = { A: '#4f8ef7', B: '#e63946', NEUTRO: '#1f2430' };
 let bancoDados = {}; 
+let geoData = null;
+let munSelecionado = null;
 let layersMunicipios = {};
 let geoLayer;
 
 const map = L.map('map', { zoomSnap: 0.5, preferCanvas: true }).setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-// Função para misturar cores (JS Nativo)
-function mixColors(color1, color2, weight) {
-  const p = weight;
-  const w = p * 2 - 1;
-  const w1 = (w / 1 + 1) / 2;
-  const w2 = 1 - w1;
-  const hex = (c) => parseInt(c, 16);
-  const r = Math.round(hex(color1.slice(1,3)) * w2 + hex(color2.slice(1,3)) * w1);
-  const g = Math.round(hex(color1.slice(3,5)) * w2 + hex(color2.slice(3,5)) * w1);
-  const b = Math.round(hex(color1.slice(5,7)) * w2 + hex(color2.slice(5,7)) * w1);
-  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+function updateProgress(p) { document.getElementById('progress-bar').style.width = p + '%'; }
+
+async function init() {
+  const status = document.getElementById('loadStatus');
+  status.innerText = "CARREGANDO MAPA...";
+  const geoRes = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
+  geoData = await geoRes.json();
+  
+  await carregarCargosSequencialmente();
 }
 
-async function carregarTudo() {
-  const status = document.getElementById('loadStatus');
-  for (const cargo of CARGOS) {
+async function carregarCargosSequencialmente() {
+  for (let cargo of CARGOS) {
+    const status = document.getElementById('loadStatus');
     status.innerText = `LENDO ${cargo.id.toUpperCase()}...`;
-    const cacheKey = `data_v3_${cargo.id}`;
-    let csv = localStorage.getItem(cacheKey);
     
+    let csv = localStorage.getItem('data_v4_' + cargo.id);
     if (!csv) {
-      try {
-        const res = await fetch(`https://docs.google.com/spreadsheets/d/e/${cargo.pubId}/pub?output=csv`);
-        csv = await res.text();
-        localStorage.setItem(cacheKey, csv);
-      } catch (e) { console.error("Erro cargo:", cargo.id); continue; }
+      const resp = await fetch(`https://docs.google.com/spreadsheets/d/e/${cargo.pubId}/pub?output=csv&t=${Date.now()}`);
+      csv = await resp.text();
+      localStorage.setItem('data_v4_' + cargo.id, csv);
     }
-    processarCSV(cargo.id, csv);
+    await processarChunk(csv, cargo.id);
   }
-  status.innerText = "SISTEMA PRONTO";
+  document.getElementById('loadStatus').innerText = "SISTEMA PRONTO";
   renderizarMapa();
 }
 
-function processarCSV(cargoId, csv) {
-  const linhas = csv.split('\n');
-  if (linhas.length < 2) return;
-  const cabecalho = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
-  
-  const idx = {
-    mun: cabecalho.findIndex(h => h.includes('MUNICIPIO') || h.includes('NM_MUN')),
-    cand: cabecalho.findIndex(h => h.includes('CANDIDATO') || h.includes('NM_VOTAVEL')),
-    votos: cabecalho.findIndex(h => h.includes('VOTOS') || h.includes('QT_VOTOS'))
-  };
-
-  for(let i=1; i<linhas.length; i++) {
-    const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
-    const cid = col[idx.mun]?.toUpperCase();
-    if (!cid) continue;
-
-    if (!bancoDados[cid]) bancoDados[cid] = {};
-    if (!bancoDados[cid][cargoId]) bancoDados[cid][cargoId] = { candidatos: [], teto: 0 };
-
-    const votos = parseInt(col[idx.votos]?.replace(/\D/g,'')) || 0;
-    const nome = col[idx.cand]?.toUpperCase();
-    
-    bancoDados[cid][cargoId].candidatos.push({ n: nome, v: votos });
-    if (votos > bancoDados[cid][cargoId].teto) bancoDados[cid][cargoId].teto = votos;
-  }
+function processarChunk(csv, cargoId) {
+  return new Promise(resolve => {
+    const linhas = csv.split('\n');
+    let i = 1;
+    function chunk() {
+      const limit = Math.min(i + 800, linhas.length);
+      for (; i < limit; i++) {
+        const col = linhas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
+        if (col.length < 3) continue;
+        const mun = col[0].toUpperCase();
+        if (!bancoDados[mun]) bancoDados[mun] = {};
+        if (!bancoDados[mun][cargoId]) bancoDados[mun][cargoId] = { candidatos: [], teto: 0 };
+        const v = parseInt(col[2].replace(/\D/g,'')) || 0;
+        bancoDados[mun][cargoId].candidatos.push({ n: col[1].toUpperCase(), v: v });
+        if (v > bancoDados[mun][cargoId].teto) bancoDados[mun][cargoId].teto = v;
+      }
+      if (i < linhas.length) { setTimeout(chunk, 1); } else { resolve(); }
+    }
+    chunk();
+  });
 }
 
 function getForca(cid, busca) {
-  if (!bancoDados[cid] || !busca || busca.length < 2) return null;
+  if (!bancoDados[cid] || !busca || busca.length < 3) return null;
   const b = busca.toUpperCase();
-  for (let cargo in bancoDados[cid]) {
-    const achou = bancoDados[cid][cargo].candidatos.find(c => c.n.includes(b));
-    if (achou) return { f: (achou.v / bancoDados[cid][cargo].teto) * 100, v: achou.v, c: cargo };
+  for (let cargoId in bancoDados[cid]) {
+    const achou = bancoDados[cid][cargoId].candidatos.find(c => c.n.includes(b));
+    if (achou) return { f: (achou.v / bancoDados[cid][cargoId].teto) * 100, v: achou.v, c: cargoId };
   }
   return null;
 }
 
 function renderizarMapa() {
   if (geoLayer) map.removeLayer(geoLayer);
-  fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json')
-  .then(r => r.json()).then(geo => {
-    geoLayer = L.geoJSON(geo, {
-      style: f => {
-        const cid = f.properties.name.toUpperCase();
-        const b1 = document.getElementById('cand1').value;
-        const b2 = document.getElementById('cand2').value;
-        
-        const d1 = getForca(cid, b1);
-        const d2 = getForca(cid, b2);
-
-        if (!d1 && !d2) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3, color: '#333' };
-
-        const f1 = d1 ? d1.f : 0;
-        const f2 = d2 ? d2.f : 0;
-        const total = f1 + f2;
-        
-        // Cor dinâmica baseada na força relativa
-        const ratio = f2 / (f1 + f2 || 1);
-        const cor = mixColors(CORES.A, CORES.B, ratio);
-
-        return {
-          fillColor: cor,
-          fillOpacity: Math.min(0.9, 0.2 + (total/150)),
-          weight: 0.5,
-          color: '#fff'
-        };
-      },
-      onEachFeature: (f, layer) => {
-        const cid = f.properties.name.toUpperCase();
-        layersMunicipios[cid] = layer;
-        layer.on('click', () => { munSelecionado = f.properties.name; atualizarRanking(); });
-      }
-    }).addTo(map);
-  });
+  geoLayer = L.geoJSON(geoData, {
+    style: f => {
+      const cid = f.properties.name.toUpperCase();
+      const b1 = document.getElementById('cand1').value;
+      const b2 = document.getElementById('cand2').value;
+      const d1 = getForca(cid, b1);
+      const d2 = getForca(cid, b2);
+      if (!d1 && !d2) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3, color: '#333' };
+      const f1 = d1?.f || 0; const f2 = d2?.f || 0;
+      const ratio = f2 / (f1 + f2 || 1);
+      return { fillColor: mixColors('#4f8ef7', '#e63946', ratio), fillOpacity: 0.7, weight: 0.5, color: '#fff' };
+    },
+    onEachFeature: (f, layer) => {
+      layersMunicipios[f.properties.name.toUpperCase()] = layer;
+      layer.on('click', () => { munSelecionado = f.properties.name; atualizarRanking(); });
+    }
+  }).addTo(map);
 }
 
-function comparar() {
-  renderizarMapa();
-  atualizarRanking();
+function mixColors(c1, c2, w) {
+  const f = (c) => parseInt(c, 16);
+  const r = Math.round(f(c1.slice(1,3))*(1-w) + f(c2.slice(1,3))*w);
+  const g = Math.round(f(c1.slice(3,5))*(1-w) + f(c2.slice(3,5))*w);
+  const b = Math.round(f(c1.slice(5,7))*(1-w) + f(c2.slice(5,7))*w);
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
 }
+
+function comparar() { renderizarMapa(); atualizarRanking(); }
 
 function atualizarRanking() {
   const container = document.getElementById('ranking');
+  if (!munSelecionado) return;
   const b1 = document.getElementById('cand1').value;
   const b2 = document.getElementById('cand2').value;
-
-  if (!munSelecionado) {
-    container.innerHTML = '<div style="color:var(--text2); font-size:11px">Clique em uma cidade no mapa.</div>';
-    return;
-  }
-
   const d1 = getForca(munSelecionado.toUpperCase(), b1);
   const d2 = getForca(munSelecionado.toUpperCase(), b2);
-
   document.getElementById('sbTitle').innerText = munSelecionado;
   container.innerHTML = `
-    <div class="comparison-card" style="border-left: 4px solid ${CORES.A}">
+    <div class="comparison-card" style="border-left:4px solid #4f8ef7">
       <div style="font-size:11px; font-weight:600">${b1 || '---'}</div>
-      <div class="comp-row"><span>${d1?.c || '-'}</span> <b>${d1 ? d1.v.toLocaleString() : 0} v</b></div>
-      <div class="comp-row"><span style="color:${CORES.A}">FORÇA</span> <b>${d1 ? d1.f.toFixed(1) : 0}%</b></div>
-      <div class="force-bar"><div style="width:${d1?.f || 0}%; background:${CORES.A}; height:100%"></div></div>
+      <div class="comp-row"><span>${d1?.c || '-'}</span> <b>${d1?.v.toLocaleString() || 0} v</b></div>
+      <div class="comp-row"><span>FORÇA</span> <b>${d1?.f.toFixed(1) || 0}%</b></div>
+      <div class="force-bar"><div style="width:${d1?.f || 0}%; background:#4f8ef7; height:100%"></div></div>
     </div>
-    <div class="comparison-card" style="border-left: 4px solid ${CORES.B}">
+    <div class="comparison-card" style="border-left:4px solid #e63946">
       <div style="font-size:11px; font-weight:600">${b2 || '---'}</div>
-      <div class="comp-row"><span>${d2?.c || '-'}</span> <b>${d2 ? d2.v.toLocaleString() : 0} v</b></div>
-      <div class="comp-row"><span style="color:${CORES.B}">FORÇA</span> <b>${d2 ? d2.f.toFixed(1) : 0}%</b></div>
-      <div class="force-bar"><div style="width:${d2?.f || 0}%; background:${CORES.B}; height:100%"></div></div>
-    </div>
+      <div class="comp-row"><span>${d2?.c || '-'}</span> <b>${d2?.v.toLocaleString() || 0} v</b></div>
+      <div class="comp-row"><span>FORÇA</span> <b>${d2?.f.toFixed(1) || 0}%</b></div>
+      <div class="force-bar"><div style="width:${d2?.f || 0}%; background:#e63946; height:100%"></div></div>
   `;
 }
 
 function buscarMunicipio() {
-  const busca = document.getElementById('searchMun').value.toUpperCase();
-  const layer = layersMunicipios[busca];
-  if (layer) { map.fitBounds(layer.getBounds()); munSelecionado = busca; atualizarRanking(); }
+  const b = document.getElementById('searchMun').value.toUpperCase();
+  if (layersMunicipios[b]) { map.fitBounds(layersMunicipios[b].getBounds()); munSelecionado = b; atualizarRanking(); }
 }
 
-function limparTudo() {
-  localStorage.clear();
-  location.reload();
-}
-
-carregarTudo();
-</script>
-</body>
-</html>    if (cache) {
-        document.getElementById('detalhes').innerText = "Usando cache local.";
-        processar(cache, cargo);
-    } else {
-        try {
-            const resp = await fetch(`https://docs.google.com/spreadsheets/d/e/${CARGOS[cargo]}/pub?output=csv&t=${Date.now()}`);
-            const text = await resp.text();
-            localStorage.setItem('data_' + cargo, text);
-            processar(text, cargo);
-        } catch (e) {
-            document.getElementById('status').innerText = "Erro no download";
-        }
-    }
-}
-
-function processar(csv, cargo) {
-    const linhas = csv.split('\n');
-    const total = linhas.length;
-    document.getElementById('status').innerText = "Processando...";
-    
-    // Processamento assíncrono para não travar o Chrome
-    let i = 1;
-    function chunk() {
-        const limit = Math.min(i + 500, total);
-        for (; i < limit; i++) {
-            const col = linhas[i].split(',');
-            if (col.length < 3) continue;
-            
-            const mun = col[0].replace(/"/g, '').toUpperCase();
-            const cand = col[1].replace(/"/g, '').toUpperCase();
-            const votos = parseInt(col[2]) || 0;
-
-            if (!db[mun]) db[mun] = {};
-            if (!db[mun][cargo]) db[mun][cargo] = [];
-            db[mun][cargo].push({ n: cand, v: votos });
-        }
-        
-        updateProgress(40 + (i / total * 60));
-        
-        if (i < total) {
-            setTimeout(chunk, 1);
-        } else {
-            document.getElementById('status').innerText = "Mapa Pronto";
-            document.getElementById('detalhes').innerText = `${total} registros carregados.`;
-            desenhar();
-        }
-    }
-    chunk();
-}
-
-function desenhar() {
-    if (window.camada) map.removeLayer(window.camada);
-    window.camada = L.geoJSON(geoJSON, {
-        style: { color: '#2a3148', weight: 1, fillColor: '#1f2430', fillOpacity: 0.6 }
-    }).addTo(map);
-}
-
-function updateProgress(p) {
-    document.getElementById('progress-bar').style.width = p + '%';
-}
-
-function mudarCargo(cargo, btn) {
-    document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    carregar(cargo);
-}
-
-function limparCache() {
-    localStorage.clear();
-    location.reload();
-}
+function limparTudo() { localStorage.clear(); location.reload(); }
 
 init();
 </script>
