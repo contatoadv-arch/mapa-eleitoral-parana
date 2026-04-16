@@ -2,53 +2,38 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa PR — Performance Mode</title>
+    <title>Mapa PR - Ultra Performance</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #0a0c10; --surface: #14171f; --border: #2a3148; --accent: #4f8ef7; --text: #e8ecf4; }
-        body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; margin: 0; }
-        header { display: flex; align-items: center; gap: 10px; padding: 10px 15px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 1000; }
-        .sel-btn { font-family: 'IBM Plex Mono'; font-size: 11px; padding: 5px 10px; border-radius: 4px; border: 1px solid var(--border); background: #1f2430; color: #8b93a8; cursor: pointer; }
-        .sel-btn.active { background: var(--accent); color: #fff; }
-        .main { display: flex; flex: 1; position: relative; }
-        #map { flex: 1; background: #07090d; }
-        .sidebar { width: 350px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-        #loader { position: fixed; top: 60px; left: 0; width: 100%; height: 3px; background: #000; z-index: 2000; display: none; }
-        #loader-inner { width: 0%; height: 100%; background: var(--accent); transition: width 0.3s; }
-        .v-section { border-radius: 8px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); margin: 10px; }
-        .input-search { background: #000; border: 1px solid var(--border); color: #fff; padding: 6px; border-radius: 4px; font-size: 12px; }
+        body { margin: 0; background: #07090d; color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        header { height: 50px; background: #14171f; display: flex; align-items: center; padding: 0 15px; gap: 10px; border-bottom: 1px solid #2a3148; }
+        #map { flex: 1; }
+        #progress-container { position: absolute; top: 50px; left: 0; width: 100%; height: 4px; background: #000; z-index: 1001; }
+        #progress-bar { width: 0%; height: 100%; background: #4f8ef7; transition: width 0.2s; }
+        .sidebar { width: 300px; background: #14171f; border-left: 1px solid #2a3148; padding: 15px; }
+        button { cursor: pointer; padding: 5px 10px; background: #1f2430; border: 1px solid #2a3148; color: #8b93a8; border-radius: 4px; }
+        button.active { background: #4f8ef7; color: white; }
     </style>
 </head>
 <body>
 
-<div id="loader"><div id="loader-inner"></div></div>
-
 <header>
-    <div style="display:flex; gap:4px;">
-        <button class="sel-btn active" data-id="prefeito" onclick="trocarCargo('prefeito')">PREF</button>
-        <button class="sel-btn" data-id="vereador" onclick="trocarCargo('vereador')">VER</button>
-        <button class="sel-btn" data-id="governador" onclick="trocarCargo('governador')">GOV</button>
-        <button class="sel-btn" data-id="senador" onclick="trocarCargo('senador')">SEN</button>
-    </div>
-    
-    <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
-        <input type="text" id="cand1" class="input-search" placeholder="Candidato A" oninput="debounceEntrada()">
-        <span style="font-size:10px;">VS</span>
-        <input type="text" id="cand2" class="input-search" placeholder="Candidato B" oninput="debounceEntrada()">
-        <button onclick="limparCache()" class="sel-btn" style="color:#ff4d4d">Reset</button>
-    </div>
+    <button class="btn active" onclick="mudarCargo('prefeito', this)">PREF</button>
+    <button class="btn" onclick="mudarCargo('vereador', this)">VER</button>
+    <button class="btn" onclick="mudarCargo('governador', this)">GOV</button>
+    <input type="text" id="c1" placeholder="Candidato A" style="margin-left:auto; background:#000; border:1px solid #2a3148; color:white; padding:5px;">
+    <input type="text" id="c2" placeholder="Candidato B" style="background:#000; border:1px solid #2a3148; color:white; padding:5px;">
+    <button onclick="limparCache()" style="color:#e63946">Reset Cache</button>
 </header>
 
-<div class="main">
+<div id="progress-container"><div id="progress-bar"></div></div>
+
+<div style="display:flex; flex:1;">
     <div id="map"></div>
     <div class="sidebar">
-        <div style="padding:15px; border-bottom:1px solid var(--border)">
-            <div id="sbTitle" style="font-weight:600">Carregando mapa...</div>
-            <div id="sbSub" style="font-size:11px; color:var(--accent)">AGUARDE...</div>
-        </div>
-        <div id="sideContent" style="flex:1; overflow-y:auto; padding:10px;"></div>
+        <h3 id="status">Iniciando...</h3>
+        <p id="detalhes" style="font-size: 12px; color: #8b93a8;">Aguardando dados.</p>
+        <div id="ranking"></div>
     </div>
 </div>
 
@@ -57,131 +42,97 @@
 const CARGOS = {
     prefeito: '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9',
     vereador: '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6',
-    governador: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews',
-    senador: '2PACX-1vTwDP_rWXeGuNrZa_P1doV5yqyIKoPLgrXGuZ5E1jGW38zbPyqV3qqCcILV8kX8jNHUqtPaLoh8-6le'
+    governador: '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews'
 };
 
-let bancoDados = {}; 
-let cargoAtivo = 'prefeito';
-let geoDataGlobal = null;
-let timerBusca;
-
-const map = L.map('map', { zoomSnap: 0.5 }).setView([-24.8, -51.5], 7);
+let db = {};
+let geoJSON = null;
+let map = L.map('map').setView([-24.8, -51.5], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
 async function init() {
-    mostrarLoader(20);
-    const resp = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
-    geoDataGlobal = await resp.json();
-    mostrarLoader(50);
-    await carregarCargo(cargoAtivo);
+    updateProgress(20);
+    const res = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
+    geoJSON = await res.json();
+    updateProgress(40);
+    await carregar('prefeito');
 }
 
-async function carregarCargo(id) {
-    mostrarLoader(60);
-    const cacheKey = `v_fast_${id}`;
-    let csv = localStorage.getItem(cacheKey);
+async function carregar(cargo) {
+    document.getElementById('status').innerText = "Baixando...";
+    const cache = localStorage.getItem('data_' + cargo);
     
-    if (!csv) {
-        document.getElementById('sbSub').innerText = "BAIXANDO DA NUVEM...";
-        const res = await fetch(`https://docs.google.com/spreadsheets/d/e/${CARGOS[id]}/pub?output=csv&t=${Date.now()}`);
-        csv = await res.text();
-        if (csv.length > 500) localStorage.setItem(cacheKey, csv);
-    }
-    
-    document.getElementById('sbSub').innerText = "PROCESSANDO...";
-    setTimeout(() => { // Delay para não travar a UI
-        processarCSV(id, csv);
-        processarEntrada();
-        mostrarLoader(100);
-    }, 100);
-}
-
-function processarCSV(cargoId, csv) {
-    const linhas = csv.split('\n');
-    const cab = linhas[0].split(',').map(h => h.replace(/"/g, '').trim().toUpperCase());
-    const idx = {
-        mun: cab.findIndex(h => h.includes('MUNICIPIO') || h.includes('NM_MUN')),
-        cand: cab.findIndex(h => h.includes('CANDIDATO') || h.includes('NM_VOTAVEL')),
-        votos: cab.findIndex(h => h.includes('VOTOS') || h.includes('QT_VOTOS')),
-        part: cab.findIndex(h => h.includes('PARTIDO') || h.includes('SG_PARTIDO'))
-    };
-
-    linhas.slice(1).forEach(l => {
-        const col = l.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
-        const cid = col[idx.mun]?.toUpperCase();
-        if (!cid) return;
-        if (!bancoDados[cid]) bancoDados[cid] = {};
-        if (!bancoDados[cid][cargoId]) bancoDados[cid][cargoId] = { cands: [], teto: 0 };
-        const v = parseInt(col[idx.votos]?.replace(/\D/g,'')) || 0;
-        bancoDados[cid][cargoId].cands.push({ n: col[idx.cand]?.toUpperCase(), v, p: col[idx.part]?.toUpperCase() });
-        if (v > bancoDados[cid][cargoId].teto) bancoDados[cid][cargoId].teto = v;
-    });
-}
-
-function debounceEntrada() {
-    clearTimeout(timerBusca);
-    timerBusca = setTimeout(processarEntrada, 500); // Só processa 0.5s após parar de digitar
-}
-
-function processarEntrada() {
-    const b1 = document.getElementById('cand1').value.toUpperCase();
-    const b2 = document.getElementById('cand2').value.toUpperCase();
-    const isConf = b1.length >= 3 && b2.length >= 3;
-    
-    atualizarMapa(isConf, b1, b2);
-    document.getElementById('sbTitle').innerText = isConf ? "Confronto Direto" : "Ranking Geral";
-    document.getElementById('sbSub').innerText = cargoAtivo.toUpperCase();
-}
-
-function atualizarMapa(isConf, b1, b2) {
-    if (window.geoLayer) map.removeLayer(window.geoLayer);
-    window.geoLayer = L.geoJSON(geoDataGlobal, {
-        style: f => {
-            const cid = f.properties.name.toUpperCase();
-            if (isConf) {
-                const f1 = getForca(cid, b1)?.f || 0;
-                const f2 = getForca(cid, b2)?.f || 0;
-                if (f1 + f2 === 0) return { fillColor: '#111', weight: 0.2, fillOpacity: 0.3 };
-                return { fillColor: mixColors('#4f8ef7', '#e63946', f2/(f1+f2)), fillOpacity: 0.8, weight: 0.5, color: '#fff' };
-            }
-            return { fillColor: '#333', fillOpacity: 0.4, weight: 0.2, color: '#444' };
+    if (cache) {
+        document.getElementById('detalhes').innerText = "Usando cache local.";
+        processar(cache, cargo);
+    } else {
+        try {
+            const resp = await fetch(`https://docs.google.com/spreadsheets/d/e/${CARGOS[cargo]}/pub?output=csv&t=${Date.now()}`);
+            const text = await resp.text();
+            localStorage.setItem('data_' + cargo, text);
+            processar(text, cargo);
+        } catch (e) {
+            document.getElementById('status').innerText = "Erro no download";
         }
+    }
+}
+
+function processar(csv, cargo) {
+    const linhas = csv.split('\n');
+    const total = linhas.length;
+    document.getElementById('status').innerText = "Processando...";
+    
+    // Processamento assíncrono para não travar o Chrome
+    let i = 1;
+    function chunk() {
+        const limit = Math.min(i + 500, total);
+        for (; i < limit; i++) {
+            const col = linhas[i].split(',');
+            if (col.length < 3) continue;
+            
+            const mun = col[0].replace(/"/g, '').toUpperCase();
+            const cand = col[1].replace(/"/g, '').toUpperCase();
+            const votos = parseInt(col[2]) || 0;
+
+            if (!db[mun]) db[mun] = {};
+            if (!db[mun][cargo]) db[mun][cargo] = [];
+            db[mun][cargo].push({ n: cand, v: votos });
+        }
+        
+        updateProgress(40 + (i / total * 60));
+        
+        if (i < total) {
+            setTimeout(chunk, 1);
+        } else {
+            document.getElementById('status').innerText = "Mapa Pronto";
+            document.getElementById('detalhes').innerText = `${total} registros carregados.`;
+            desenhar();
+        }
+    }
+    chunk();
+}
+
+function desenhar() {
+    if (window.camada) map.removeLayer(window.camada);
+    window.camada = L.geoJSON(geoJSON, {
+        style: { color: '#2a3148', weight: 1, fillColor: '#1f2430', fillOpacity: 0.6 }
     }).addTo(map);
 }
 
-function getForca(cid, busca) {
-    if (!bancoDados[cid]) return null;
-    for (let c in bancoDados[cid]) {
-        const achou = bancoDados[cid][c].cands.find(x => x.n.includes(busca));
-        if (achou) return { f: (achou.v / bancoDados[cid][c].teto) * 100, v: achou.v, n: achou.n };
-    }
-    return null;
+function updateProgress(p) {
+    document.getElementById('progress-bar').style.width = p + '%';
 }
 
-function mixColors(c1, c2, w) {
-    const f = (c) => parseInt(c, 16);
-    const r = Math.round(f(c1.slice(1,3))*(1-w) + f(c2.slice(1,3))*w);
-    const g = Math.round(f(c1.slice(3,5))*(1-w) + f(c2.slice(3,5))*w);
-    const b = Math.round(f(c1.slice(5,7))*(1-w) + f(c2.slice(5,7))*w);
-    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+function mudarCargo(cargo, btn) {
+    document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    carregar(cargo);
 }
 
-function mostrarLoader(p) {
-    const l = document.getElementById('loader');
-    const li = document.getElementById('loader-inner');
-    l.style.display = 'block';
-    li.style.width = p + '%';
-    if (p >= 100) setTimeout(() => l.style.display = 'none', 500);
+function limparCache() {
+    localStorage.clear();
+    location.reload();
 }
-
-function trocarCargo(id) {
-    cargoAtivo = id;
-    document.querySelectorAll('.sel-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
-    carregarCargo(id);
-}
-
-function limparCache() { localStorage.clear(); location.reload(); }
 
 init();
 </script>
