@@ -2,827 +2,2004 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Inteligência Eleitoral · Paraná</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Estratégico PR 2026</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap');
+
 :root {
-  --bg:       #080b12;
-  --surface:  #0e1220;
-  --border:   #1c2440;
-  --border2:  #2a3560;
-  --text:     #c8d4f0;
-  --muted:    #4a5880;
-  --accent:   #3b82f6;
-  --accent2:  #e63946;
-  --green:    #22c55e;
-  --gold:     #f59e0b;
-  --white:    #f0f4ff;
+  --bg:#040608;--surface:#070b10;--card:#0b1018;--border:#141e2a;--border2:#1c2a3a;
+  --text:#c8d8e8;--muted:#4a6070;--muted2:#2a3a4a;--dim:#0f1820;
+  --accent:#00d4ff;--adim:rgba(0,212,255,.07);--aglow:rgba(0,212,255,.15);
+  --sandro:#ff8c00;--moro:#1a6eff;--requiao:#cc1a2a;--greca:#8b6fe8;
+  --pos:#00cc66;--neg:#ff2244;--warn:#ffaa00;--neu:#4a6070;
+  --scan:rgba(0,212,255,.03);
+  --font-mono:'Share Tech Mono',monospace;
+  --font-head:'Barlow Condensed',sans-serif;
+  --font-body:'Barlow',sans-serif;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:13px;overflow:hidden}
+
+/* Scanlines */
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,var(--scan) 2px,var(--scan) 4px);pointer-events:none;z-index:9999}
 
 /* HEADER */
-header {
-  height: 52px; background: var(--surface); border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; padding: 0 16px; gap: 12px; flex-shrink: 0;
-  position: relative; z-index: 1000;
-}
-.logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 13px; color: var(--white); letter-spacing: 0.05em; white-space: nowrap; }
-.logo span { color: var(--accent); }
-.status-pill {
-  font-size: 10px; padding: 2px 8px; border-radius: 20px; border: 1px solid var(--border2);
-  color: var(--muted); background: var(--bg); white-space: nowrap;
-  transition: all 0.3s;
-}
-.status-pill.ok { color: var(--green); border-color: var(--green); }
-.status-pill.loading { color: var(--gold); border-color: var(--gold); animation: pulse 1s infinite; }
-.status-pill.err { color: var(--accent2); border-color: var(--accent2); }
+.hdr{height:48px;background:var(--surface);border-bottom:1px solid var(--border2);
+  display:flex;align-items:center;padding:0 16px;gap:0;flex-shrink:0;position:relative;overflow:hidden}
+.hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
+.hdr-logo{font-family:var(--font-head);font-size:1.15rem;font-weight:900;letter-spacing:2px;
+  color:var(--accent);text-transform:uppercase;padding-right:20px;border-right:1px solid var(--border2);margin-right:16px}
+.hdr-logo span{color:var(--text);font-weight:300}
+.hdr-nav{display:flex;gap:1px}
+.nb{padding:5px 14px;font-family:var(--font-head);font-size:.75rem;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;border:none;background:transparent;color:var(--muted);cursor:pointer;transition:all .2s;border-bottom:2px solid transparent}
+.nb:hover{color:var(--text)}
+.nb.active{color:var(--accent);border-bottom-color:var(--accent)}
+.hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+#clock{font-family:var(--font-mono);font-size:.75rem;color:var(--accent);letter-spacing:1px}
+.btn-update{padding:5px 14px;border-radius:2px;border:1px solid var(--accent);background:var(--adim);color:var(--accent);
+  font-family:var(--font-head);font-size:.7rem;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+.btn-update:hover{background:var(--accent);color:#000}
 
-/* MODO TABS */
-.mode-tabs { display: flex; gap: 2px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 2px; }
-.mode-tab {
-  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 600;
-  padding: 4px 10px; border-radius: 4px; border: none; cursor: pointer;
-  background: transparent; color: var(--muted); transition: all 0.2s; white-space: nowrap;
-  letter-spacing: 0.04em;
-}
-.mode-tab.active { background: var(--accent); color: white; }
-.mode-tab:hover:not(.active) { color: var(--text); background: var(--border); }
+/* TICKER */
+.ticker{height:24px;background:linear-gradient(90deg,#000 0%,var(--surface) 100%);
+  border-bottom:1px solid var(--border2);display:flex;overflow:hidden;flex-shrink:0}
+.tk-lbl{flex-shrink:0;background:var(--accent);color:#000;font-family:var(--font-mono);font-size:.6rem;
+  font-weight:700;letter-spacing:2px;padding:0 10px;display:flex;align-items:center}
+.tk-scroll{flex:1;overflow:hidden;display:flex;align-items:center}
+.tk-inner{display:inline-flex;white-space:nowrap;animation:tkr 60s linear infinite}
+@keyframes tkr{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tki{font-family:var(--font-mono);font-size:.62rem;color:var(--muted);padding:0 28px 0 0}
+.tki b{color:var(--text)}
+.tki::before{content:'◆ ';color:var(--accent);font-size:.4rem;vertical-align:middle;margin-right:6px}
 
-/* CONTROLES */
-.controls { display: flex; gap: 8px; align-items: center; margin-left: auto; }
-select, input[type=text] {
-  background: var(--bg); border: 1px solid var(--border2); color: var(--text);
-  padding: 5px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; outline: none; transition: border-color 0.2s;
-}
-select:focus, input[type=text]:focus { border-color: var(--accent); }
-select { width: 140px; }
-input[type=text] { width: 160px; }
-.btn {
-  font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700;
-  padding: 5px 12px; border-radius: 4px; border: none; cursor: pointer;
-  letter-spacing: 0.05em; transition: all 0.2s;
-}
-.btn-danger { background: var(--accent2); color: white; }
-.btn-danger:hover { background: #c1121f; }
-.btn-primary { background: var(--accent); color: white; }
-.btn-primary:hover { background: #2563eb; }
+/* SHELL */
+.shell{display:flex;height:calc(100vh - 72px);overflow:hidden}
+.page{display:none;flex:1;overflow:hidden}
+.page.active{display:flex}
 
-/* LAYOUT PRINCIPAL */
-.main { display: flex; flex: 1; overflow: hidden; }
-#map { flex: 1; background: var(--bg); }
+/* STATUS BAR */
+.status-bar{height:22px;background:var(--surface);border-top:1px solid var(--border2);
+  display:flex;align-items:center;padding:0 14px;gap:14px;flex-shrink:0}
+.si{display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:.55rem;color:var(--muted)}
+.sd{width:5px;height:5px;border-radius:50%}
+.sd.ok{background:var(--pos);box-shadow:0 0 4px var(--pos)}
+.sd.err{background:var(--neg)}
+.sd.load{background:var(--warn);animation:blink .8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.sr2{margin-left:auto;font-family:var(--font-mono);font-size:.55rem;color:var(--muted2)}
 
-/* SIDEBAR */
-.sidebar {
-  width: 320px; background: var(--surface); border-left: 1px solid var(--border);
-  display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;
-}
-.sidebar-header {
-  padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0;
-}
-.mun-nome {
-  font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800;
-  color: var(--white); line-height: 1.2;
-}
-.mun-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
-.sidebar-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
-.sidebar-body::-webkit-scrollbar { width: 4px; }
-.sidebar-body::-webkit-scrollbar-track { background: transparent; }
-.sidebar-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+/* ═══════════════════════════════════════
+   PÁGINA: MAPA (sala de guerra)
+═══════════════════════════════════════ */
+#page-mapa{flex-direction:row}
 
-/* CARDS MÉTRICAS */
-.metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-.metric-card {
-  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-  padding: 10px; text-align: center;
-}
-.metric-val { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800; color: var(--white); }
-.metric-lbl { font-size: 9px; color: var(--muted); margin-top: 2px; letter-spacing: 0.05em; text-transform: uppercase; }
+/* Painel esquerdo — filtros + busca */
+.war-left{width:240px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border2);
+  display:flex;flex-direction:column;overflow:hidden}
+.war-section{padding:10px 12px;border-bottom:1px solid var(--border)}
+.war-title{font-family:var(--font-mono);font-size:.55rem;letter-spacing:2px;color:var(--accent);
+  text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.war-title::before{content:'';width:4px;height:4px;background:var(--accent);display:inline-block}
 
-/* SEÇÃO */
-.sec-title { font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin: 12px 0 6px; }
+/* Filtro de modo do mapa */
+.mode-btns{display:flex;flex-direction:column;gap:2px}
+.mode-btn{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:2px;
+  border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;
+  font-family:var(--font-body);font-size:.68rem;font-weight:500;transition:all .2s;text-align:left;width:100%}
+.mode-btn:hover{border-color:var(--border2);color:var(--text)}
+.mode-btn.active{border-color:var(--accent);background:var(--adim);color:var(--accent)}
+.mode-btn .dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.mode-btn.active .label{color:var(--accent)}
 
-/* CANDIDATO ROW */
-.cand-item { margin-bottom: 8px; }
-.cand-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
-.cand-nome { font-size: 11px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-.cand-votos { font-size: 11px; color: var(--white); white-space: nowrap; }
-.cand-pct { font-size: 10px; color: var(--muted); }
-.bar-wrap { height: 3px; background: var(--border); border-radius: 2px; }
-.bar-fill { height: 3px; border-radius: 2px; background: var(--accent); }
-.bar-fill.b { background: var(--accent2); }
-.bar-fill.winner { background: var(--gold); }
+/* Candidatos filtro */
+.cand-filters{display:flex;flex-direction:column;gap:3px}
+.cand-btn{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:2px;
+  border:1px solid var(--border);background:transparent;cursor:pointer;
+  font-family:var(--font-body);font-size:.68rem;font-weight:600;transition:all .2s;width:100%;color:var(--muted)}
+.cand-btn:hover{color:var(--text);border-color:var(--border2)}
+.cand-btn.active{background:var(--adim)}
+.cand-btn .cbar{width:4px;height:20px;border-radius:1px;flex-shrink:0;opacity:.5;transition:opacity .2s}
+.cand-btn.active .cbar{opacity:1}
+.cand-btn.active.sandro{border-color:var(--sandro);color:var(--sandro)}
+.cand-btn.active.moro{border-color:var(--moro);color:var(--moro)}
+.cand-btn.active.requiao{border-color:var(--requiao);color:var(--requiao)}
+.cand-btn.active.greca{border-color:var(--greca);color:var(--greca)}
 
-/* VENCEDOR BADGE */
-.winner-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: linear-gradient(135deg, #f59e0b22, #f59e0b11);
-  border: 1px solid #f59e0b44; border-radius: 6px; padding: 8px 12px;
-  margin-bottom: 12px; width: 100%;
-}
-.winner-badge .wname { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--gold); }
-.winner-badge .wvotos { font-size: 11px; color: var(--muted); }
+/* Busca de candidato */
+.search-box{display:flex;flex-direction:column;gap:5px}
+.war-input{background:var(--card);border:1px solid var(--border2);color:var(--text);
+  padding:6px 10px;border-radius:2px;font-family:var(--font-mono);font-size:.68rem;width:100%;
+  outline:none;transition:border-color .2s}
+.war-input:focus{border-color:var(--accent)}
+.war-input::placeholder{color:var(--muted2)}
+.war-select{background:var(--card);border:1px solid var(--border2);color:var(--text);
+  padding:5px 8px;border-radius:2px;font-family:var(--font-body);font-size:.68rem;width:100%;
+  outline:none;cursor:pointer}
+.war-btn{padding:6px;border-radius:2px;border:1px solid var(--accent);background:var(--adim);
+  color:var(--accent);font-family:var(--font-head);font-size:.65rem;font-weight:700;
+  letter-spacing:1px;cursor:pointer;transition:all .2s;width:100%;text-transform:uppercase}
+.war-btn:hover{background:var(--accent);color:#000}
+.search-results{flex:1;overflow-y:auto;padding:8px 12px}
+.search-results::-webkit-scrollbar{width:2px}
+.search-results::-webkit-scrollbar-thumb{background:var(--border2)}
+.sr-item{padding:8px;border:1px solid var(--border);border-radius:2px;margin-bottom:5px;
+  cursor:pointer;transition:all .2s;background:var(--card)}
+.sr-item:hover{border-color:var(--accent);background:var(--adim)}
+.sr-name{font-size:.72rem;font-weight:700;margin-bottom:2px}
+.sr-cargo{font-size:.58rem;color:var(--muted)}
+.sr-votos{font-size:.65rem;font-weight:700;color:var(--accent);margin-top:3px}
+.sr-munis{font-size:.58rem;color:var(--muted2);margin-top:2px;max-height:60px;overflow:hidden}
 
-/* COMPARACAO PAINEL */
-.comp-versus {
-  display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; margin-bottom: 12px;
-}
-.comp-card { background: var(--bg); border-radius: 6px; padding: 10px; text-align: center; }
-.comp-card.a { border: 1px solid #3b82f644; }
-.comp-card.b { border: 1px solid #e6394644; }
-.comp-nome { font-size: 10px; color: var(--muted); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.comp-val { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; }
-.comp-val.a { color: var(--accent); }
-.comp-val.b { color: var(--accent2); }
-.comp-pct { font-size: 10px; color: var(--muted); }
-.vs-label { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 800; color: var(--muted); }
+/* Centro — mapa */
+.map-center{flex:1;position:relative;overflow:hidden;background:radial-gradient(ellipse at center, #060d14 0%, #030507 100%)}
 
-/* BARRA VERSUS */
-.versus-bar { height: 6px; border-radius: 3px; overflow: hidden; display: flex; margin-bottom: 12px; }
-.versus-bar .seg-a { background: var(--accent); }
-.versus-bar .seg-b { background: var(--accent2); }
+/* Grid de fundo estilo militar */
+.map-center::before{content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(0,212,255,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,212,255,.03) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none;z-index:1}
 
-/* PESQUISA */
-.search-results { display: flex; flex-direction: column; gap: 6px; }
-.search-item {
-  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-  padding: 10px 12px; cursor: pointer; transition: border-color 0.2s;
-}
-.search-item:hover { border-color: var(--accent); }
-.search-item-nome { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; color: var(--white); }
-.search-item-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
-.search-item-badge { font-size: 10px; color: var(--accent); }
+#svgMap{width:100%;height:100%;cursor:crosshair;position:relative;z-index:2}
 
-/* PLACEHOLDER */
-.placeholder { text-align: center; padding: 40px 20px; }
-.placeholder-icon { font-size: 32px; margin-bottom: 12px; opacity: 0.3; }
-.placeholder-text { font-size: 11px; color: var(--muted); line-height: 1.6; }
+/* Overlay de loading */
+.map-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);z-index:20;flex-direction:column;gap:12px}
+.spinner{width:28px;height:28px;border:2px solid var(--border2);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-txt{font-family:var(--font-mono);font-size:.65rem;color:var(--muted);letter-spacing:1px}
 
-/* FORÇA GRADIENTE */
-.forca-scale {
-  display: flex; gap: 2px; margin-bottom: 8px; border-radius: 4px; overflow: hidden; height: 6px;
-}
+/* Legenda do mapa */
+.map-legend{position:absolute;bottom:12px;left:12px;background:rgba(7,11,16,.92);
+  border:1px solid var(--border2);border-radius:2px;padding:10px 12px;z-index:5;
+  backdrop-filter:blur(4px)}
+.leg-title{font-family:var(--font-mono);font-size:.5rem;letter-spacing:2px;color:var(--accent);
+  text-transform:uppercase;margin-bottom:7px}
+.leg-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-family:var(--font-mono);font-size:.58rem;color:var(--muted)}
+.leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+/* Zoom controls */
+.zoom-ctrl{position:absolute;bottom:12px;right:12px;display:flex;flex-direction:column;gap:2px;z-index:5}
+.zoom-btn{width:30px;height:30px;background:var(--surface);border:1px solid var(--border2);color:var(--accent);
+  cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);transition:all .2s;border-radius:2px}
+.zoom-btn:hover{background:var(--adim);border-color:var(--accent)}
 
-/* LEAFLET OVERRIDES */
-.leaflet-container { background: var(--bg) !important; }
-.leaflet-control-zoom a {
-  background: var(--surface) !important; color: var(--text) !important;
-  border-color: var(--border) !important;
-}
-.leaflet-control-zoom a:hover { background: var(--border) !important; }
-.leaflet-control-attribution { display: none; }
+/* Coordenadas */
+.map-coords{position:absolute;top:10px;right:12px;font-family:var(--font-mono);font-size:.55rem;
+  color:var(--muted2);z-index:5;letter-spacing:1px}
 
-/* TOOLTIP MAPA */
-.map-tooltip {
-  background: var(--surface); border: 1px solid var(--border2); border-radius: 4px;
-  padding: 6px 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text);
-  box-shadow: 0 4px 20px #00000088;
-}
+/* Tooltip */
+.map-tooltip{position:absolute;background:rgba(7,11,16,.96);border:1px solid var(--accent);
+  border-radius:2px;padding:8px 12px;pointer-events:none;z-index:10;font-size:.65rem;
+  max-width:220px;display:none;backdrop-filter:blur(8px)}
+.tt-name{font-family:var(--font-head);font-size:.9rem;font-weight:700;color:var(--accent);margin-bottom:4px}
+.tt-row{display:flex;justify-content:space-between;gap:12px;font-family:var(--font-mono);font-size:.6rem;color:var(--muted);margin-bottom:2px}
+.tt-row b{color:var(--text)}
 
-/* PANEL MODO */
-.panel-modo { padding: 0 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.panel-modo .inputs-row { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 10px; }
-.panel-modo input { flex: 1; min-width: 100px; }
-.panel-modo .hint { font-size: 10px; color: var(--muted); margin-top: 6px; }
+/* Painel direito — notícias */
+.war-right{width:280px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border2);
+  display:flex;flex-direction:column;overflow:hidden}
+.news-header{padding:10px 12px 8px;border-bottom:1px solid var(--border2);flex-shrink:0}
+.news-title-bar{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--neg);
+  animation:livepulse 1.5s infinite}
+@keyframes livepulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(255,34,68,.4)}50%{opacity:.6;box-shadow:0 0 0 5px rgba(255,34,68,0)}}
+.news-title{font-family:var(--font-head);font-size:.9rem;font-weight:700;letter-spacing:2px;
+  color:var(--text);text-transform:uppercase}
+.news-filters{display:flex;gap:3px;flex-wrap:wrap}
+.nf-btn{padding:2px 8px;border-radius:1px;font-family:var(--font-mono);font-size:.55rem;
+  border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;
+  transition:all .2s;letter-spacing:.5px}
+.nf-btn:hover{color:var(--text)}
+.nf-btn.active{background:var(--adim);border-color:var(--accent);color:var(--accent)}
+.nf-btn.pos-filter.active{border-color:var(--pos);color:var(--pos);background:rgba(0,204,102,.07)}
+.nf-btn.neg-filter.active{border-color:var(--neg);color:var(--neg);background:rgba(255,34,68,.07)}
 
-/* LEGENDA */
-.legenda {
-  position: absolute; bottom: 24px; left: 16px; z-index: 999;
-  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
-  padding: 10px 14px; font-size: 10px;
-}
-.legenda-title { font-family: 'Syne', sans-serif; font-weight: 700; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
-.legenda-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.legenda-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+/* Feed de notícias */
+.news-feed{flex:1;overflow-y:auto;padding:6px 8px}
+.news-feed::-webkit-scrollbar{width:2px}
+.news-feed::-webkit-scrollbar-thumb{background:var(--border2)}
+
+.news-item{border-radius:2px;padding:8px 10px;margin-bottom:5px;cursor:pointer;
+  border-left:3px solid transparent;transition:all .25s;position:relative;overflow:hidden;
+  background:var(--card)}
+.news-item::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;opacity:0;transition:opacity .3s}
+.news-item.pos{border-left-color:var(--pos)}
+.news-item.neg{border-left-color:var(--neg);animation:negpulse 3s ease-in-out infinite}
+.news-item.neu{border-left-color:var(--muted)}
+.news-item.neg::before{background:rgba(255,34,68,.05);animation:negbg 3s ease-in-out infinite}
+.news-item.pos::before{background:rgba(0,204,102,.03)}
+@keyframes negpulse{0%,100%{box-shadow:none}50%{box-shadow:inset 0 0 12px rgba(255,34,68,.12)}}
+@keyframes negbg{0%,100%{opacity:0}50%{opacity:1}}
+.news-item:hover{border-color:var(--accent)!important;background:var(--adim)}
+.ni-meta{display:flex;align-items:center;gap:4px;margin-bottom:3px;flex-wrap:wrap}
+.ni-sent{font-family:var(--font-mono);font-size:.55rem;font-weight:700;padding:1px 5px;border-radius:1px}
+.ni-sent.pos{background:rgba(0,204,102,.15);color:var(--pos)}
+.ni-sent.neg{background:rgba(255,34,68,.15);color:var(--neg)}
+.ni-sent.neu{background:rgba(74,96,112,.15);color:var(--muted)}
+.ni-sent.pend{background:rgba(255,170,0,.1);color:var(--warn)}
+.ni-cand{font-size:.55rem;font-weight:700;padding:1px 4px;border-radius:1px}
+.ni-time{font-family:var(--font-mono);font-size:.55rem;color:var(--muted2);margin-left:auto}
+.ni-title{font-size:.7rem;font-weight:600;line-height:1.35;color:var(--text)}
+.ni-fonte{font-family:var(--font-mono);font-size:.55rem;color:var(--muted2);margin-top:2px}
+.ni-expand{display:none;margin-top:7px;padding:8px;background:var(--surface);
+  border:1px solid var(--border2);border-radius:2px;font-size:.65rem;line-height:1.6;color:var(--muted)}
+.ni-expand.open{display:block}
+.ni-expand a{color:var(--accent);font-size:.6rem;text-decoration:none}
+.ni-expand a:hover{text-decoration:underline}
+
+/* Popup de notícia no mapa */
+.news-popup{position:absolute;background:rgba(7,11,16,.97);border:1px solid var(--accent);
+  border-radius:2px;padding:12px 14px;z-index:15;max-width:280px;min-width:220px;
+  display:none;backdrop-filter:blur(12px)}
+.news-popup::before{content:'';position:absolute;bottom:-6px;left:20px;
+  width:10px;height:10px;background:var(--surface);border-right:1px solid var(--accent);
+  border-bottom:1px solid var(--accent);transform:rotate(45deg)}
+.np-region{font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--accent);
+  letter-spacing:1px;margin-bottom:2px}
+.np-count{font-family:var(--font-mono);font-size:.6rem;color:var(--muted);margin-bottom:8px}
+.np-close{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);
+  cursor:pointer;font-size:.9rem;line-height:1}
+.np-close:hover{color:var(--neg)}
+.np-item{padding:5px 0;border-bottom:1px solid var(--border);display:flex;gap:6px}
+.np-item:last-child{border-bottom:none}
+.np-sent-bar{width:3px;border-radius:1px;flex-shrink:0;align-self:stretch}
+.np-txt{flex:1}
+.np-title{font-size:.65rem;font-weight:600;line-height:1.3;margin-bottom:2px;color:var(--text)}
+.np-title a{color:inherit;text-decoration:none}
+.np-title a:hover{color:var(--accent)}
+.np-resumo{font-size:.58rem;color:var(--muted);line-height:1.4}
+.np-fonte{font-family:var(--font-mono);font-size:.52rem;color:var(--muted2);margin-top:2px}
+
+/* Detail drawer (quando clica município) */
+.muni-drawer{position:absolute;left:0;top:0;bottom:0;width:260px;background:rgba(7,11,16,.96);
+  border-right:1px solid var(--accent);z-index:12;transform:translateX(-100%);
+  transition:transform .3s ease;overflow-y:auto;padding:14px;backdrop-filter:blur(12px)}
+.muni-drawer.open{transform:translateX(0)}
+.muni-drawer::-webkit-scrollbar{width:2px}
+.muni-drawer::-webkit-scrollbar-thumb{background:var(--border2)}
+.md-close{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--muted);
+  cursor:pointer;font-size:1rem}
+.md-close:hover{color:var(--neg)}
+.md-name{font-family:var(--font-head);font-size:1.4rem;font-weight:900;letter-spacing:1px;
+  color:var(--accent);margin-bottom:2px}
+.md-sub{font-family:var(--font-mono);font-size:.6rem;color:var(--muted);margin-bottom:12px}
+.md-section{font-family:var(--font-mono);font-size:.52rem;letter-spacing:2px;color:var(--accent);
+  text-transform:uppercase;margin:10px 0 5px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.md-row{display:flex;align-items:center;gap:6px;padding:5px 7px;background:var(--card);
+  border-radius:2px;margin-bottom:3px;border:1px solid var(--border)}
+.md-cargo{font-size:.55rem;color:var(--muted);width:72px;flex-shrink:0;font-family:var(--font-mono)}
+.md-nome{font-size:.68rem;font-weight:600;flex:1}
+.md-part{font-size:.55rem;font-weight:700;padding:1px 4px;border-radius:1px}
+.md-votos{font-size:.6rem;color:var(--muted);text-align:right;width:42px;font-family:var(--font-mono)}
+.md-est-row{display:flex;align-items:center;gap:6px;padding:6px 7px;background:var(--card);
+  border-radius:2px;margin-bottom:3px;border:1px solid var(--border)}
+.md-est-name{font-size:.68rem;font-weight:700;flex:1}
+.md-est-bar{height:5px;border-radius:2px;background:var(--border);flex:1;overflow:hidden}
+.md-est-fill{height:100%;border-radius:2px;transition:width .4s}
+.md-est-pct{font-family:var(--font-mono);font-size:.62rem;font-weight:700;width:32px;text-align:right}
+.btn-ai-muni{width:100%;margin-top:8px;padding:7px;background:var(--adim);
+  border:1px solid var(--accent);color:var(--accent);font-family:var(--font-head);
+  font-size:.7rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  border-radius:2px;cursor:pointer;transition:all .2s}
+.btn-ai-muni:hover{background:var(--accent);color:#000}
+.ai-resp{margin-top:8px;padding:8px;background:var(--card);border:1px solid var(--border2);
+  border-radius:2px;font-size:.65rem;line-height:1.6;color:var(--text);
+  white-space:pre-wrap;max-height:160px;overflow-y:auto;display:none}
+.ai-resp.open{display:block}
+
+/* ═══════════════════════════════════════
+   PÁGINA: BUSCA
+═══════════════════════════════════════ */
+#page-busca{flex-direction:column}
+.busca-bar{padding:12px 18px;border-bottom:1px solid var(--border2);background:var(--surface);
+  display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.bf{display:flex;flex-direction:column;gap:4px}
+.bf label{font-family:var(--font-mono);font-size:.52rem;letter-spacing:2px;
+  text-transform:uppercase;color:var(--accent)}
+.bf input,.bf select{background:var(--card);border:1px solid var(--border2);color:var(--text);
+  padding:6px 10px;border-radius:2px;font-family:var(--font-mono);font-size:.72rem;
+  width:200px;outline:none;transition:border-color .2s}
+.bf input:focus,.bf select:focus{border-color:var(--accent)}
+.btn-busca{padding:6px 20px;border-radius:2px;background:var(--accent);color:#000;
+  border:none;font-family:var(--font-head);font-weight:700;font-size:.8rem;
+  letter-spacing:1px;text-transform:uppercase;cursor:pointer;align-self:flex-end}
+.busca-result{flex:1;overflow-y:auto;padding:14px 18px;display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;align-content:start}
+.busca-result::-webkit-scrollbar{width:2px}
+.bcard{background:var(--card);border:1px solid var(--border2);border-radius:2px;padding:12px 14px;
+  transition:border-color .2s}
+.bcard:hover{border-color:var(--accent)}
+.bc-head{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+.bc-rank{font-family:var(--font-mono);font-size:.7rem;color:var(--muted2);width:22px;flex-shrink:0;padding-top:2px}
+.bc-nome{font-family:var(--font-head);font-size:.95rem;font-weight:700;letter-spacing:.5px;flex:1}
+.bc-partido{font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:1px}
+.bc-cargo{font-size:.62rem;color:var(--muted);margin-bottom:6px}
+.bc-total{font-family:var(--font-mono);font-size:.75rem;font-weight:700;color:var(--accent);margin-bottom:8px}
+.bc-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:8px}
+.bc-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.bc-munis{display:flex;flex-wrap:wrap;gap:3px}
+.bc-muni{font-family:var(--font-mono);font-size:.55rem;padding:2px 7px;border-radius:1px;
+  background:var(--surface);border:1px solid var(--border2);cursor:pointer;transition:all .2s}
+.bc-muni:hover{border-color:var(--accent);color:var(--accent)}
+.no-result{color:var(--muted);font-family:var(--font-mono);font-size:.75rem;
+  text-align:center;padding:60px 0;grid-column:1/-1;letter-spacing:1px}
+
+/* ═══════════════════════════════════════
+   PÁGINA: SITUAÇÃO
+═══════════════════════════════════════ */
+#page-sobre{flex-direction:column;overflow-y:auto}
+#page-sobre::-webkit-scrollbar{width:3px}
+#page-sobre::-webkit-scrollbar-thumb{background:var(--border2)}
+.sobre-wrap{padding:18px 22px;max-width:1300px}
+
+.hero-card{background:linear-gradient(135deg,var(--card) 0%,#0d1620 100%);
+  border:1px solid var(--border2);border-radius:2px;padding:20px 24px;margin-bottom:14px;
+  position:relative;overflow:hidden}
+.hero-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--sandro),var(--accent),var(--moro))}
+.hero-card::after{content:'PR 2026';position:absolute;right:20px;top:50%;
+  transform:translateY(-50%);font-family:var(--font-head);font-size:5rem;font-weight:900;
+  color:rgba(255,255,255,.03);letter-spacing:4px;user-select:none}
+.hero-top{display:flex;align-items:flex-start;gap:16px;margin-bottom:14px}
+.hero-avatar{width:52px;height:52px;border-radius:2px;background:linear-gradient(135deg,var(--sandro),#cc6600);
+  display:flex;align-items:center;justify-content:center;font-family:var(--font-head);
+  font-size:1.1rem;font-weight:900;color:#000;flex-shrink:0;border:1px solid rgba(255,140,0,.3)}
+.hero-info{flex:1}
+.hero-name{font-family:var(--font-head);font-size:1.3rem;font-weight:900;letter-spacing:.5px;margin-bottom:3px}
+.hero-sub{font-size:.7rem;color:var(--muted);line-height:1.6}
+.hero-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.hbadge{font-family:var(--font-mono);font-size:.58rem;padding:2px 8px;border-radius:1px;border:1px solid}
+.hbadge-new{border-color:rgba(0,212,255,.4);color:var(--accent);background:rgba(0,212,255,.06)}
+.hbadge-psd{border-color:rgba(255,140,0,.4);color:var(--sandro);background:rgba(255,140,0,.06)}
+.hbadge-warn{border-color:rgba(255,170,0,.4);color:var(--warn);background:rgba(255,170,0,.06)}
+
+.metrics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.metric{background:var(--card);border:1px solid var(--border2);border-radius:2px;padding:10px 12px}
+.met-l{font-family:var(--font-mono);font-size:.52rem;color:var(--muted);margin-bottom:4px;letter-spacing:.5px}
+.met-v{font-family:var(--font-head);font-size:1.2rem;font-weight:700;margin-bottom:2px}
+.met-s{font-size:.6rem;color:var(--muted2)}
+.met-up{color:var(--pos)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.sbox{background:var(--card);border:1px solid var(--border2);border-radius:2px;padding:14px 16px}
+.s-title{font-family:var(--font-mono);font-size:.52rem;letter-spacing:2px;text-transform:uppercase;
+  color:var(--accent);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+/* Poll bars */
+.poll-row{display:grid;grid-template-columns:160px 1fr 48px;align-items:center;gap:8px;margin-bottom:8px}
+.pr-name{font-size:.7rem;display:flex;align-items:center;gap:5px}
+.pr-pip{width:7px;height:7px;border-radius:1px;flex-shrink:0}
+.pr-track{height:8px;background:var(--border);border-radius:1px;overflow:hidden}
+.pr-fill{height:100%;border-radius:1px;transition:width .6s ease}
+.pr-val{font-family:var(--font-mono);font-size:.7rem;font-weight:700;text-align:right}
+
+/* Reject */
+.rej-row{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.rej-n{font-size:.65rem;color:var(--muted);width:110px}
+.rej-bar{flex:1;height:5px;background:var(--border);border-radius:1px;overflow:hidden}
+.rej-fill{height:100%;border-radius:1px;background:var(--neg)}
+.rej-v{font-family:var(--font-mono);font-size:.62rem;color:var(--neg);width:35px;text-align:right}
+
+/* Timeline */
+.tl-item{display:flex;gap:10px;padding:8px;background:var(--surface);border-radius:2px;
+  border:1px solid var(--border);margin-bottom:5px}
+.tl-date{font-family:var(--font-mono);font-size:.58rem;color:var(--muted);width:52px;flex-shrink:0;line-height:1.4}
+.tl-text{font-size:.68rem;line-height:1.5}
+.tl-badge{font-family:var(--font-mono);font-size:.52rem;font-weight:700;padding:1px 6px;
+  border-radius:1px;flex-shrink:0;align-self:flex-start;margin-left:auto}
+
+/* Cruz */
+.cruz-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+.cs{border-radius:2px;padding:8px 10px;border:1px solid}
+.cs-n{font-size:.55rem;color:var(--muted);margin-bottom:3px;font-family:var(--font-mono)}
+.cs-v{font-family:var(--font-head);font-size:1.1rem;font-weight:700}
+.cs-s{font-size:.55rem;color:var(--muted2);margin-top:2px}
+
+.cruz-tbl{width:100%;border-collapse:collapse;font-size:.68rem}
+.cruz-tbl th{font-family:var(--font-mono);font-size:.52rem;letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted);padding:4px 8px;text-align:left;border-bottom:1px solid var(--border2)}
+.cruz-tbl td{padding:5px 8px;border-bottom:1px solid rgba(20,30,42,.8);vertical-align:middle}
+.cruz-tbl tr:hover td{background:rgba(0,212,255,.02)}
+.ct-badge{font-family:var(--font-mono);font-size:.53rem;font-weight:700;padding:2px 6px;border-radius:1px}
+
+/* DASHBOARD */
+#page-dashboard{flex-direction:row}
+.dmain{flex:1;overflow-y:auto;padding:14px}
+.dmain::-webkit-scrollbar{width:2px}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wgt{background:var(--card);border:1px solid var(--border2);border-radius:2px;padding:12px 14px}
+.wgt.full{grid-column:1/-1}
+.wtitle{font-family:var(--font-mono);font-size:.52rem;letter-spacing:2px;text-transform:uppercase;
+  color:var(--accent);margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+.poll-tbl{width:100%;border-collapse:collapse;font-size:.68rem}
+.poll-tbl th{font-family:var(--font-mono);font-size:.52rem;letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted);padding:4px 6px;text-align:left;border-bottom:1px solid var(--border)}
+.poll-tbl td{padding:5px 6px;border-bottom:1px solid var(--border)}
+.poll-tbl tr:last-child td{border-bottom:none}
+
+/* Termômetro */
+.th-row{display:grid;grid-template-columns:90px 1fr 36px;align-items:center;gap:6px;margin-bottom:7px}
+.th-name{font-size:.7rem;font-weight:700}
+.th-track{height:6px;background:var(--border);border-radius:1px;overflow:hidden}
+.th-fill{height:100%;border-radius:1px;transition:width .5s}
+.th-val{font-family:var(--font-mono);font-size:.6rem;color:var(--muted);text-align:right}
+
+/* Spark */
+.spark{display:flex;align-items:flex-end;gap:2px;height:40px}
+.sb{flex:1;border-radius:1px 1px 0 0;background:var(--border);min-height:2px;transition:background .2s}
+.sb:hover,.sb.now{background:var(--accent)}
+.act-list{display:flex;flex-direction:column;max-height:130px;overflow-y:auto}
+.act-list::-webkit-scrollbar{width:2px}
+.act-i{display:flex;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:.62rem}
+.act-t{font-family:var(--font-mono);font-size:.55rem;color:var(--muted2);width:36px;flex-shrink:0}
+.act-x{color:var(--muted);line-height:1.4}
+.act-x b{color:var(--text)}
+
+/* Agenda */
+.ag-item{display:flex;gap:8px;padding:6px 8px;background:var(--surface);
+  border:1px solid var(--border);border-radius:2px;margin-bottom:5px}
+.ag-date{font-family:var(--font-mono);font-size:.58rem;color:var(--muted);width:36px;flex-shrink:0}
+.ag-title{font-size:.7rem;font-weight:600;margin-bottom:1px}
+.ag-local{font-size:.58rem;color:var(--muted)}
+.ag-type{font-size:.55rem;font-weight:700;padding:1px 5px;border-radius:1px;flex-shrink:0;font-family:var(--font-mono)}
+.ag-reuniao{background:rgba(0,212,255,.08);color:var(--accent)}
+.ag-visita{background:rgba(0,204,102,.08);color:var(--pos)}
+.ag-debate{background:rgba(255,170,0,.08);color:var(--warn)}
+.ag-comicio{background:rgba(255,34,68,.08);color:var(--neg)}
+.btn-add{width:100%;margin-top:4px;padding:5px;background:transparent;
+  border:1px dashed var(--border2);color:var(--muted);font-family:var(--font-mono);
+  font-size:.62rem;border-radius:2px;cursor:pointer;transition:all .2s}
+.btn-add:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Top candidatos */
+.top-cargo-sel{background:var(--surface);border:1px solid var(--border2);color:var(--text);
+  padding:4px 9px;border-radius:2px;font-family:var(--font-mono);font-size:.62rem;outline:none}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">INTEL<span>.</span>PR</div>
-  <span id="statusPill" class="status-pill loading">INICIANDO...</span>
-
-  <div class="mode-tabs" id="modeTabs">
-    <button class="mode-tab active" onclick="setModo('neutro')">NEUTRO</button>
-    <button class="mode-tab" onclick="setModo('vencedor')">VENCEDOR</button>
-    <button class="mode-tab" onclick="setModo('comparar')">A vs B</button>
-    <button class="mode-tab" onclick="setModo('forca')">FORÇA</button>
-    <button class="mode-tab" onclick="setModo('pesquisa')">PESQUISA</button>
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">OPS<span>·</span>PR <span style="font-size:.6rem;font-weight:300">2026</span></div>
+  <nav class="hdr-nav">
+    <button class="nb active" onclick="goPage('mapa',this)">🗺 TEATRO DE OPERAÇÕES</button>
+    <button class="nb" onclick="goPage('busca',this)">🔍 BUSCA</button>
+    <button class="nb" onclick="goPage('sobre',this)">⚡ SITUAÇÃO</button>
+    <button class="nb" onclick="goPage('dashboard',this)">📊 DASHBOARD</button>
+  </nav>
+  <div class="hdr-right">
+    <span id="clock"></span>
+    <button class="btn-update" onclick="forceScrapeAndReload_()">↺ ATUALIZAR</button>
   </div>
+</div>
 
-  <div class="controls">
-    <select id="cargo" onchange="trocarCargo()">
-      <option value="prefeito">Prefeito</option>
-      <option value="vereador">Vereador</option>
-      <option value="governador">Governador</option>
-      <option value="senador">Senador</option>
-      <option value="dep_estadual">Dep. Estadual</option>
-      <option value="dep_federal">Dep. Federal</option>
-    </select>
-    <button class="btn btn-danger" onclick="localStorage.clear(); location.reload()">RESET</button>
-  </div>
-</header>
+<!-- TICKER -->
+<div class="ticker">
+  <div class="tk-lbl">INTEL</div>
+  <div class="tk-scroll"><div class="tk-inner" id="tkInner"><span class="tki">Carregando inteligência...</span></div></div>
+</div>
 
-<div class="main">
-  <div id="map">
-    <div class="legenda" id="legenda" style="display:none"></div>
-  </div>
+<!-- SHELL -->
+<div class="shell">
 
-  <div class="sidebar">
-    <!-- PAINEL DE MODO -->
-    <div class="panel-modo" id="panelModo">
-      <!-- preenchido por JS -->
-    </div>
+<!-- ═══ MAPA ═══ -->
+<div class="page active" id="page-mapa">
 
-    <!-- HEADER MUNICÍPIO -->
-    <div class="sidebar-header">
-      <div class="mun-nome" id="munNome">Paraná</div>
-      <div class="mun-sub" id="munSub">Selecione um município no mapa</div>
-    </div>
+  <!-- PAINEL ESQUERDO -->
+  <div class="war-left">
 
-    <!-- CORPO -->
-    <div class="sidebar-body" id="sidebarBody">
-      <div class="placeholder">
-        <div class="placeholder-icon">🗺️</div>
-        <div class="placeholder-text">Selecione um modo acima<br>e clique em um município</div>
+    <div class="war-section">
+      <div class="war-title">Modo do Mapa</div>
+      <div class="mode-btns">
+        <button class="mode-btn active" onclick="setMapMode('estimativa2026',this)">
+          <div class="dot" style="background:linear-gradient(135deg,var(--sandro),var(--moro))"></div>
+          <span>🎯 Estimativa 2026</span>
+        </button>
+        <button class="mode-btn" onclick="setMapMode('sandro2022',this)">
+          <div class="dot" style="background:var(--sandro)"></div>
+          <span>Sandro Alex 2022</span>
+        </button>
+        <button class="mode-btn" onclick="setMapMode('dep_federal',this)">
+          <div class="dot" style="background:#526070"></div>
+          <span>Dep. Federal 2022</span>
+        </button>
+        <button class="mode-btn" onclick="setMapMode('dep_estadual',this)">
+          <div class="dot" style="background:#526070"></div>
+          <span>Dep. Estadual 2022</span>
+        </button>
+        <button class="mode-btn" onclick="setMapMode('governador',this)">
+          <div class="dot" style="background:#526070"></div>
+          <span>Governador 2022</span>
+        </button>
+        <button class="mode-btn" onclick="setMapMode('prefeito',this)">
+          <div class="dot" style="background:#526070"></div>
+          <span>Prefeito 2024</span>
+        </button>
       </div>
+    </div>
+
+    <div class="war-section">
+      <div class="war-title">Candidatos</div>
+      <div class="cand-filters">
+        <button class="cand-btn active sandro" onclick="toggleCand('sandro',this)">
+          <div class="cbar" style="background:var(--sandro)"></div>
+          <span>Sandro Alex</span>
+        </button>
+        <button class="cand-btn active moro" onclick="toggleCand('moro',this)">
+          <div class="cbar" style="background:var(--moro)"></div>
+          <span>Sergio Moro</span>
+        </button>
+        <button class="cand-btn active requiao" onclick="toggleCand('requiao',this)">
+          <div class="cbar" style="background:var(--requiao)"></div>
+          <span>Requião Filho</span>
+        </button>
+        <button class="cand-btn active greca" onclick="toggleCand('greca',this)">
+          <div class="cbar" style="background:var(--greca)"></div>
+          <span>Rafael Greca</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="war-section">
+      <div class="war-title">Busca Rápida</div>
+      <div class="search-box">
+        <input class="war-input" id="qNome" placeholder="Nome do candidato..." onkeydown="if(event.key==='Enter')doMapSearch()">
+        <select class="war-select" id="qCargo">
+          <option value="">Todos os cargos</option>
+          <option value="DEPUTADO FEDERAL">Dep. Federal</option>
+          <option value="DEPUTADO ESTADUAL">Dep. Estadual</option>
+          <option value="GOVERNADOR">Governador</option>
+          <option value="PREFEITO">Prefeito</option>
+          <option value="VEREADOR">Vereador</option>
+          <option value="SENADOR">Senador</option>
+        </select>
+        <button class="war-btn" onclick="doMapSearch()">🔍 Buscar + Zoom</button>
+      </div>
+    </div>
+
+    <div class="search-results" id="mapSearchResults">
+      <div style="color:var(--muted2);font-family:var(--font-mono);font-size:.6rem;text-align:center;padding:16px 0;letter-spacing:1px">USE A BUSCA ACIMA</div>
+    </div>
+
+  </div>
+
+  <!-- MAPA CENTRAL -->
+  <div class="map-center" id="mapCenter">
+    <div class="map-loading" id="mapLoading">
+      <div class="spinner"></div>
+      <div class="load-txt" id="mapLoadTxt">CARREGANDO TEATRO DE OPERAÇÕES...</div>
+    </div>
+    <svg id="svgMap" viewBox="0 0 800 760" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="map-legend" id="mapLegend"></div>
+    <div class="map-coords" id="mapCoords">PR · PARANÁ · 399 MUNICÍPIOS</div>
+    <div class="map-tooltip" id="mapTooltip"></div>
+    <div class="zoom-ctrl">
+      <button class="zoom-btn" onclick="doZoom(1.3)">+</button>
+      <button class="zoom-btn" onclick="doZoom(1/1.3)">−</button>
+      <button class="zoom-btn" onclick="resetZoom()" title="Reset">⊙</button>
+    </div>
+    <!-- Drawer de município -->
+    <div class="muni-drawer" id="muniDrawer">
+      <button class="md-close" onclick="closeDrawer()">✕</button>
+      <div id="muniDrawerContent"></div>
+    </div>
+    <!-- Popup de notícias no mapa -->
+    <div class="news-popup" id="newsPopup">
+      <button class="np-close" onclick="document.getElementById('newsPopup').style.display='none'">✕</button>
+      <div id="newsPopupContent"></div>
+    </div>
+  </div>
+
+  <!-- PAINEL DIREITO — NOTÍCIAS -->
+  <div class="war-right">
+    <div class="news-header">
+      <div class="news-title-bar">
+        <div class="live-dot"></div>
+        <div class="news-title">INTEL</div>
+        <div style="margin-left:auto;font-family:var(--font-mono);font-size:.55rem;color:var(--muted)">
+          <span id="nPos" style="color:var(--pos)">+0</span> /
+          <span id="nNeg" style="color:var(--neg)">-0</span>
+        </div>
+      </div>
+      <div class="news-filters">
+        <button class="nf-btn active" data-nf="all" onclick="setNewsFilter('all',this)">TODOS</button>
+        <button class="nf-btn" data-nf="sandro" onclick="setNewsFilter('sandro',this)">SANDRO</button>
+        <button class="nf-btn" data-nf="moro" onclick="setNewsFilter('moro',this)">MORO</button>
+        <button class="nf-btn" data-nf="requiao" onclick="setNewsFilter('requiao',this)">REQUIÃO</button>
+        <button class="nf-btn" data-nf="greca" onclick="setNewsFilter('greca',this)">GRECA</button>
+        <button class="nf-btn pos-filter" data-nf="positivo" onclick="setNewsFilter('positivo',this)">▲ BOM</button>
+        <button class="nf-btn neg-filter" data-nf="negativo" onclick="setNewsFilter('negativo',this)">▼ RUIM</button>
+      </div>
+    </div>
+    <div class="news-feed" id="newsFeed">
+      <div style="color:var(--muted2);font-family:var(--font-mono);font-size:.62rem;text-align:center;padding:20px;letter-spacing:1px">AGUARDANDO INTEL...</div>
+    </div>
+  </div>
+
+</div><!-- /page-mapa -->
+
+<!-- ═══ BUSCA ═══ -->
+<div class="page" id="page-busca">
+  <div class="busca-bar">
+    <div class="bf">
+      <label>Nome</label>
+      <input id="bNome" placeholder="Ex: Sandro Alex" onkeydown="if(event.key==='Enter')doBusca()">
+    </div>
+    <div class="bf">
+      <label>Cargo</label>
+      <select id="bCargo">
+        <option value="">Todos</option>
+        <option value="DEPUTADO FEDERAL">Dep. Federal</option>
+        <option value="DEPUTADO ESTADUAL">Dep. Estadual</option>
+        <option value="GOVERNADOR">Governador</option>
+        <option value="PREFEITO">Prefeito</option>
+        <option value="VEREADOR">Vereador</option>
+        <option value="SENADOR">Senador</option>
+      </select>
+    </div>
+    <div class="bf">
+      <label>Município</label>
+      <input id="bMuni" placeholder="Ex: Curitiba" onkeydown="if(event.key==='Enter')doBusca()">
+    </div>
+    <button class="btn-busca" onclick="doBusca()">Buscar</button>
+  </div>
+  <div class="busca-result" id="bResult">
+    <div class="no-result">USE A BUSCA ACIMA PARA ENCONTRAR CANDIDATOS</div>
+  </div>
+</div>
+
+<!-- ═══ SITUAÇÃO ═══ -->
+<div class="page" id="page-sobre">
+<div class="sobre-wrap">
+
+  <div class="hero-card">
+    <div class="hero-top">
+      <div class="hero-avatar">SA</div>
+      <div class="hero-info">
+        <div class="hero-name">Sandro Alex (PSD) — Candidato ao Governo PR 2026</div>
+        <div class="hero-sub">Natural de Ponta Grossa · 53 anos · Advogado (UEPG) · Radialista · Presidente estadual PSD-PR · 4º mandato Dep. Federal · Sec. Infraestrutura 2019–2026</div>
+        <div class="hero-badges">
+          <span class="hbadge hbadge-new">ANUNCIADO 13/ABR/2026</span>
+          <span class="hbadge hbadge-psd">PSD · APOIO RATINHO JR</span>
+          <span class="hbadge hbadge-warn">CAMPO ABERTO — 72,9% INDECISOS</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <span style="font-size:.65rem;padding:3px 8px;border-radius:1px;background:rgba(0,204,102,.08);color:var(--pos);border:1px solid rgba(0,204,102,.2)">✓ Infraestrutura rodoviária PR</span>
+      <span style="font-size:.65rem;padding:3px 8px;border-radius:1px;background:rgba(0,204,102,.08);color:var(--pos);border:1px solid rgba(0,204,102,.2)">✓ Ponte de Guaratuba</span>
+      <span style="font-size:.65rem;padding:3px 8px;border-radius:1px;background:rgba(255,34,68,.08);color:var(--neg);border:1px solid rgba(255,34,68,.2)">✗ Pouca tração nas pesquisas</span>
+      <span style="font-size:.65rem;padding:3px 8px;border-radius:1px;background:rgba(255,170,0,.08);color:var(--warn);border:1px solid rgba(255,170,0,.2)">? Enfrenta Moro 46–52%</span>
+    </div>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric"><div class="met-l">MORO — PESQUISA ATUAL</div><div class="met-v" style="color:var(--moro)">46–52%</div><div class="met-s met-up">↑ +5,9pp vs mar/26</div></div>
+    <div class="metric"><div class="met-l">SANDRO — STATUS</div><div class="met-v" style="color:var(--sandro)">Não testado</div><div class="met-s" style="color:var(--warn)">Anunciado 13/abr</div></div>
+    <div class="metric"><div class="met-l">INDECISOS (ESPONTÂNEA)</div><div class="met-v">72,9%</div><div class="met-s">Campo aberto</div></div>
+    <div class="metric"><div class="met-l">VOTOS DEP. FEDERAL 2022</div><div class="met-v met-up" id="heroSandroVotos" style="color:var(--sandro)">...</div><div class="met-s">Dados TSE reais</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="sbox">
+      <div class="s-title">Pesquisas — Gov. PR (candidatos testados)</div>
+      <div style="font-size:.62rem;color:var(--warn);padding:5px 8px;background:rgba(255,170,0,.05);border:1px solid rgba(255,170,0,.15);border-radius:2px;margin-bottom:10px">⚠ Sandro Alex ainda não aparece nas pesquisas — anunciado em 13/abr/2026</div>
+      <div style="font-size:.6rem;color:var(--muted);margin-bottom:8px">Paraná Pesquisas · Abr/2026</div>
+      <div class="poll-row"><span class="pr-name"><span class="pr-pip" style="background:var(--moro)"></span>Sergio Moro (PL)</span><div class="pr-track"><div class="pr-fill" style="width:88%;background:var(--moro)"></div></div><span class="pr-val" style="color:var(--moro)">46,0%</span></div>
+      <div class="poll-row"><span class="pr-name"><span class="pr-pip" style="background:var(--greca)"></span>Rafael Greca (MDB)</span><div class="pr-track"><div class="pr-fill" style="width:38%;background:var(--greca)"></div></div><span class="pr-val" style="color:var(--greca)">19,7%</span></div>
+      <div class="poll-row"><span class="pr-name"><span class="pr-pip" style="background:var(--requiao)"></span>Requião Filho (PDT)</span><div class="pr-track"><div class="pr-fill" style="width:34%;background:var(--requiao)"></div></div><span class="pr-val" style="color:var(--requiao)">17,7%</span></div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:.6rem;color:var(--muted);margin-bottom:6px">Rejeição</div>
+        <div class="rej-row"><span class="rej-n">Requião Filho</span><div class="rej-bar"><div class="rej-fill" style="width:67%"></div></div><span class="rej-v">33,5%</span></div>
+        <div class="rej-row"><span class="rej-n">Sergio Moro</span><div class="rej-bar"><div class="rej-fill" style="width:43%"></div></div><span class="rej-v">21,7%</span></div>
+        <div class="rej-row"><span class="rej-n">Rafael Greca</span><div class="rej-bar"><div class="rej-fill" style="width:25%"></div></div><span class="rej-v">12,7%</span></div>
+      </div>
+    </div>
+    <div class="sbox">
+      <div class="s-title">Cruzamento: Sandro 2022 × Prefeito 2024</div>
+      <div class="cruz-stats">
+        <div class="cs" style="border-color:rgba(41,98,255,.4);background:rgba(41,98,255,.04)"><div class="cs-n">ALIADO FORTE</div><div class="cs-v" style="color:var(--moro)" id="cs-af">—</div></div>
+        <div class="cs" style="border-color:rgba(41,98,255,.2);background:rgba(41,98,255,.02)"><div class="cs-n">ALIADO FRACO</div><div class="cs-v" style="color:#5b7aff" id="cs-aw">—</div></div>
+        <div class="cs" style="border-color:rgba(255,34,68,.4);background:rgba(255,34,68,.04)"><div class="cs-n">ADVERSÁRIOS</div><div class="cs-v" style="color:var(--neg)" id="cs-ad">—</div></div>
+        <div class="cs" style="border-color:rgba(74,96,112,.3);background:rgba(74,96,112,.03)"><div class="cs-n">NEUTROS</div><div class="cs-v" style="color:var(--muted)" id="cs-ne">—</div></div>
+      </div>
+      <div id="cruzLoading" style="color:var(--muted);font-size:.68rem;padding:12px 0">Aguardando dados...</div>
+      <div style="overflow-x:auto;display:none" id="cruzWrap">
+        <table class="cruz-tbl">
+          <thead><tr><th>#</th><th>Município</th><th>Partido Prefeito</th><th>Campo</th><th>Sandro 2022</th><th>Class.</th></tr></thead>
+          <tbody id="cruzBody"></tbody>
+        </table>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+          <button style="padding:3px 10px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;border-radius:2px;font-family:var(--font-mono);font-size:.6rem" id="cruzPrev" onclick="cruzPg(-1)" disabled>◀</button>
+          <span style="font-family:var(--font-mono);font-size:.6rem;color:var(--muted)" id="cruzPgInfo">—</span>
+          <button style="padding:3px 10px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;border-radius:2px;font-family:var(--font-mono);font-size:.6rem" id="cruzNext" onclick="cruzPg(1)">▶</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sbox" style="margin-bottom:14px">
+    <div class="s-title">Linha do Tempo — corrida ao governo PR 2026</div>
+    <div class="tl-item"><div class="tl-date">ago/24</div><div class="tl-text">Moro lidera com 41,3% × Greca 17,2% × Borghetti 11,2%. Sandro Alex não citado.</div><div class="tl-badge" style="background:rgba(26,110,255,.12);color:var(--moro)">MORO 41%</div></div>
+    <div class="tl-item"><div class="tl-date">jan/26</div><div class="tl-text">Moro 38–51%. Greca 15,5%, Requião 12%. Guto Silva cotado pelo PSD.</div><div class="tl-badge" style="background:rgba(255,140,0,.12);color:var(--sandro)">PSD INDECISO</div></div>
+    <div class="tl-item"><div class="tl-date">mar/26</div><div class="tl-text">Moro 40–47%. Greca e Curi saem do PSD (→MDB/Republicanos). Campo racha.</div><div class="tl-badge" style="background:rgba(255,34,68,.1);color:var(--neg)">RACHA PSD</div></div>
+    <div class="tl-item" style="border:1px solid var(--accent);background:rgba(0,212,255,.03)"><div class="tl-date" style="color:var(--accent)">13/abr ←</div><div class="tl-text"><b>SANDRO ALEX (PSD) confirmado por Ratinho Jr como candidato ao governo do PR.</b></div><div class="tl-badge" style="background:var(--adim);color:var(--accent)">NOVO</div></div>
+    <div class="tl-item" style="opacity:.5"><div class="tl-date">mai–jun/26</div><div class="tl-text">Primeiras pesquisas com Sandro Alex. Definição de alianças e vice.</div><div class="tl-badge" style="background:var(--border)">AGUARDADO</div></div>
+    <div class="tl-item" style="opacity:.5"><div class="tl-date">04/out/26</div><div class="tl-text">1º turno. Se nenhum candidato atingir 50%+1 → 2º turno em 25/out/26.</div><div class="tl-badge" style="background:rgba(26,110,255,.1);color:var(--moro)">ELEIÇÃO</div></div>
+  </div>
+
+  <div class="grid3">
+    <div class="sbox"><div class="s-title">Pontos Fortes</div><div style="font-size:.7rem;line-height:1.8;color:var(--muted)">— Apoio de Ratinho Jr (88% aprovação)<br>— Presidente estadual PSD — estrutura<br>— Obras: Ponte Guaratuba, Porto<br>— Perfil técnico — secretário<br>— Base no Sudoeste e Centro-Sul<br>— 4º mandato — conhecimento legislativo</div></div>
+    <div class="sbox"><div class="s-title">Riscos e Fraquezas</div><div style="font-size:.7rem;line-height:1.8;color:var(--muted)">— Baixo reconhecimento popular<br>— Moro consolidado: 46–52% já<br>— Chegou tarde ao campo<br>— Sem dado de pesquisa ainda<br>— Aprovação Ratinho ≠ transferência</div></div>
+    <div class="sbox"><div class="s-title">Variáveis Decisivas</div><div style="font-size:.7rem;line-height:1.8;color:var(--muted)">— Pesquisas com Sandro (mai/jun)<br>— Vice escolhido — base regional<br>— Posição de Moro (gov. ou senado?)<br>— Aliança PL/PR (campo Bolsonaro)<br>— 72,9% indecisos — campo aberto</div></div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══ DASHBOARD ═══ -->
+<div class="page" id="page-dashboard">
+  <div class="dmain">
+    <div class="dgrid">
+      <div class="wgt">
+        <div class="wtitle">Pesquisas — Governador PR</div>
+        <table class="poll-tbl">
+          <thead><tr><th>Instituto</th><th>Data</th><th style="color:var(--moro)">Moro</th><th style="color:var(--greca)">Greca</th><th style="color:var(--requiao)">Requião</th><th>Status</th></tr></thead>
+          <tbody id="pollBody"></tbody>
+        </table>
+      </div>
+      <div class="wgt">
+        <div class="wtitle">Sentimento de Mídia (IA)</div>
+        <div class="th-row"><span class="th-name" style="color:var(--sandro)">Sandro Alex</span><div class="th-track"><div class="th-fill" id="th-sandro" style="width:0%;background:var(--sandro)"></div></div><span class="th-val" id="thv-sandro">—</span></div>
+        <div class="th-row"><span class="th-name" style="color:var(--moro)">Moro</span><div class="th-track"><div class="th-fill" id="th-moro" style="width:0%;background:var(--moro)"></div></div><span class="th-val" id="thv-moro">—</span></div>
+        <div class="th-row"><span class="th-name" style="color:var(--requiao)">Requião</span><div class="th-track"><div class="th-fill" id="th-requiao" style="width:0%;background:var(--requiao)"></div></div><span class="th-val" id="thv-requiao">—</span></div>
+        <div class="th-row"><span class="th-name" style="color:var(--greca)">Greca</span><div class="th-track"><div class="th-fill" id="th-greca" style="width:0%;background:var(--greca)"></div></div><span class="th-val" id="thv-greca">—</span></div>
+        <div style="margin-top:10px"><div class="wtitle" style="margin-bottom:6px">Volume 12h</div><div class="spark" id="sparkD"></div></div>
+      </div>
+      <div class="wgt full">
+        <div class="wtitle" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Top Candidatos por Cargo</span>
+          <select class="top-cargo-sel" id="topCargoSel" onchange="renderTopCandidatos()"><option value="">Carregando...</option></select>
+        </div>
+        <div id="topCandidatosWrap" style="font-size:.7rem;color:var(--muted)">Aguardando dados das planilhas...</div>
+      </div>
+      <div class="wgt full">
+        <div class="wtitle" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Agenda de Campanha</span>
+          <button style="padding:2px 9px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;font-family:var(--font-mono);font-size:.58rem;border-radius:2px" onclick="addAgenda()">+ Evento</button>
+        </div>
+        <div id="agendaList"></div>
+      </div>
+      <div class="wgt"><div class="wtitle">Log de Atividade</div><div class="act-list" id="actLog"></div></div>
+      <div class="wgt"><div class="wtitle">Log de Atividade</div><div class="act-list" id="actLog2"></div></div>
     </div>
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</div><!-- /shell -->
+
+<div class="status-bar">
+  <div class="si"><span class="sd" id="sd-map"></span><span id="sl-map">Mapa</span></div>
+  <div class="si"><span class="sd" id="sd-sheets"></span><span id="sl-sheets">Planilhas</span></div>
+  <div class="si"><span class="sd" id="sd-news"></span><span id="sl-news">Notícias</span></div>
+  <div class="si"><span class="sd" id="sd-ai"></span><span id="sl-ai">IA</span></div>
+  <div class="sr2" id="lastUp">—</div>
+</div>
+
 <script>
-// ═══════════════════════════════════════════
-// CONFIGURAÇÃO
-// ═══════════════════════════════════════════
-const CARGOS = {
-  prefeito:    '2PACX-1vSckBOXlWUoaPUmw8cS57lzWxSVIcvqKe0l_t5kRo8ymELlAyqGbqkJQ7lT8x87EXXpv8ikou2tsSm9',
-  vereador:    '2PACX-1vRpedSBo3JsGPENvU-WDCoIsG9ij_n5H58-63dDQFyg-N1aNW_bTlp-qlRWnM7f-DxwY5GRnEAozAb6',
-  governador:  '2PACX-1vQgr3d0ZpsR4-XyZ78RTACi8w__I32rAtHCxygT1snVu8kAW_SDT7OHs2EZPFUa-TwwWmm-VuJjVews',
-  senador:     '2PACX-1vTwDP_rWXeGuNrZa_P1doV5yqyIKoPLgrXGuZ5E1jGW38zbPyqV3qqCcILV8kX8jNHUqtPaLoh8-6le',
-  dep_estadual:'2PACX-1vRMmzjng4UNfnkH4GROewoGsj8_k-3V1K1G-uB9l3US_Y4oQ8vn399e_a7ca1WrFLQYsGaXMON43LxG',
-  dep_federal: '2PACX-1vReWuQtkZI_ZdV6Wr7JIkgW5zN58vBR2iQPRPN7sLUu4cs3NhPMU_RPJYlrmLZxLYUWkPDjVUs_HQGV'
+// ═══════════════════════════════════════════════════════
+// CONFIG & CONSTANTES
+// ═══════════════════════════════════════════════════════
+const CORS    = 'https://api.allorigins.win/raw?url=';
+const REFRESH = 300;
+
+const PARTY_COLORS = {
+  PT:'#cc1a2a',PL:'#1a6eff',PSD:'#ff8c00',MDB:'#00a86b',PP:'#6c3fa0',
+  UNIAO:'#c87000','UNIÃO':'#c87000',REPUBLICANOS:'#8b1a22',PSDB:'#004a9e',
+  PDT:'#aa0020',PODE:'#0055cc',SOLID:'#4a18b0',PV:'#1a8032',
+  PSOL:'#cc003a',PCdoB:'#aa0000',PRD:'#d06000',AVANTE:'#cc6600',
+  SOLIDARIEDADE:'#4a18b0',NOVO:'#c08000',PATRIOTA:'#0a4a8a',
+  CIDADANIA:'#0a8abf',PSB:'#c05010',REDE:'#1a9040',
 };
 
-// ═══════════════════════════════════════════
-// ESTADO
-// ═══════════════════════════════════════════
-let bancoDados = {};        // cargo atual
-let todosCargos = {};       // cache de todos os cargos carregados
-let eleitorado = {};        // soma vereadores por município
-let geoJSON = null;
-let modo = 'neutro';
-let carregando = false;
-let munSelecionado = null;
+const CAMPO_PARTIDO = {
+  PL:'direita',PSD:'direita',PP:'direita',UNIAO:'direita','UNIÃO':'direita',
+  REPUBLICANOS:'direita',NOVO:'direita',PATRIOTA:'direita',PRD:'direita',
+  PODE:'direita',AVANTE:'direita',SOLIDARIEDADE:'direita',PSDB:'direita',
+  PT:'esquerda',PSOL:'esquerda',PDT:'esquerda',PSB:'esquerda',
+  PCdoB:'esquerda','PC DO B':'esquerda',REDE:'esquerda',PV:'esquerda',
+  MDB:'centro',CIDADANIA:'centro',SOLID:'centro',
+};
 
-// ═══════════════════════════════════════════
-// MAPA
-// ═══════════════════════════════════════════
-const map = L.map('map', { zoomControl: true }).setView([-24.8, -51.5], 7);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '', maxZoom: 19
-}).addTo(map);
+const CAMPO_COR = {direita:'#1a6eff',esquerda:'#cc1a2a',centro:'#4a6070'};
+const CAMPO_LBL = {direita:'Direita',esquerda:'Esquerda',centro:'Centro'};
 
-// ═══════════════════════════════════════════
+const CAND_COLORS = {sandro:'#ff8c00',moro:'#1a6eff',requiao:'#cc1a2a',greca:'#8b6fe8'};
+const CAND_LABELS = {sandro:'Sandro Alex',moro:'Sergio Moro',requiao:'Requião Filho',greca:'Rafael Greca'};
+
+const CAND_KW = {
+  sandro:['sandro alex','sandro','psd paraná'],
+  moro:['sergio moro','moro','pl paraná'],
+  requiao:['requião filho','requiao filho','requião','requiao'],
+  greca:['rafael greca','greca','mdb paraná'],
+};
+
+const MESORREGIOES_CENTROS = {
+  'Metropolitana':[-49.27,-25.43],'Norte Central':[-51.80,-23.30],
+  'Oeste':[-53.50,-24.80],'Sudoeste':[-52.70,-25.90],'Centro-Sul':[-51.50,-25.60],
+  'Norte Pioneiro':[-50.00,-23.10],'Centro-Oriental':[-50.20,-24.50],
+  'Noroeste':[-52.80,-23.60],'Litoral':[-48.50,-25.60],
+};
+
+const PORTAL_MESO = {
+  'bandnews':'Metropolitana','gazeta':'Metropolitana','atribuna':'Metropolitana',
+  'cgn':'Oeste','odiario':'Noroeste','cafezinho':'Norte Central',
+  'folha':'Norte Pioneiro','ric':'Metropolitana','plural':'Metropolitana',
+  'coritiba':'Metropolitana','londrina':'Norte Central','maringa':'Norte Central',
+  'ponta grossa':'Centro-Oriental','foz':'Oeste','cascavel':'Oeste',
+};
+
+const POLLS_DEFAULT = [
+  {inst:'Paraná Pesquisas',date:'abr/26',moro:46,greca:19.7,requiao:17.7,sit:'Moro lidera'},
+  {inst:'AtlasIntel',date:'mar/26',moro:47.6,greca:16,requiao:14,sit:'Moro +1'},
+  {inst:'Nexus/BTG',date:'mar/26',moro:46,greca:18,requiao:15,sit:'Empate técnico'},
+];
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let mapMode        = 'estimativa2026';
+let candFilters    = {sandro:true,moro:true,requiao:true,greca:true};
+let allItems       = [];
+let newsFilter     = 'all';
+let sentCache      = {};
+let sheetData      = {};
+let votosAgregados = {};
+let sandroAlex     = {};
+let topCandidatos  = {};
+let sheetAgenda    = [];
+let sheetMunicipios= [];
+let sheetEstimativas= [];
+let estimativasIndex= {};
+let muniNormIndex  = {};
+let geoMuniNomes   = {};
+let geoFeatures    = [];
+let svgPaths       = {};
+let geoProject     = null;
+let geoProjectInv  = null;
+let geoBounds      = null;
+let zoomLevel      = 1;
+let panX=0, panY=0;
+let isDragging     = false;
+let dragStart      = {x:0,y:0};
+
+// Cruzamento
+let cruzData=[], cruzPg_=0;
+const CRUZ_PP=15;
+
+// ═══════════════════════════════════════════════════════
 // UTILS
-// ═══════════════════════════════════════════
-function S(t) {
-  return t.toString().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+// ═══════════════════════════════════════════════════════
+function norm(s){return String(s||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();}
+function fmtN(n){return Number(n).toLocaleString('pt-BR');}
+function getPC(p){return PARTY_COLORS[String(p||'').toUpperCase()]||'#4a6070';}
+function getCampo(p){
+  const s=String(p||'').toUpperCase().trim();
+  if(s.includes('UNIAO')||s.includes('UNIÃO'))return'direita';
+  if(s.includes('REPUBLICANO'))return'direita';
+  if(s.includes('PCdoB')||s.includes('PC DO B'))return'esquerda';
+  if(s.includes('SOLIDARIEDADE'))return'direita';
+  return CAMPO_PARTIDO[s]||'centro';
 }
-function fmtN(n) { return (n||0).toLocaleString('pt-BR'); }
-function fmtPct(v,t) { return t>0 ? ((v/t)*100).toFixed(1)+'%' : '0%'; }
+function timeAgo(d){const s=(Date.now()-d.getTime())/1000;if(s<60)return~~s+'s';if(s<3600)return~~(s/60)+'min';if(s<86400)return~~(s/3600)+'h';return d.toLocaleDateString('pt-BR');}
+function detectCands(t){const tx=t.toLowerCase(),f=[];for(const[c,kws]of Object.entries(CAND_KW))if(kws.some(k=>tx.includes(k)))f.push(c);return f.length?f:['outros'];}
 
-function matchCand(nome, busca) {
-  if (!busca || busca.length < 2) return false;
-  return nome.includes(busca) || busca.includes(nome);
-}
-
-function buscarVotosEmCargo(cargo, munKey, busca) {
-  const db = todosCargos[cargo];
-  if (!db) return 0;
-  const d = db[munKey];
-  if (!d) return 0;
-  const f = d.cands.find(c => matchCand(c.n, S(busca)));
-  return f ? f.v : 0;
-}
-
-function buscarVotosTodosCargos(munKey, busca) {
-  let total = 0, cargoAchado = null;
-  for (const [cargo, db] of Object.entries(todosCargos)) {
-    const d = db[munKey];
-    if (!d) continue;
-    const f = d.cands.find(c => matchCand(c.n, S(busca)));
-    if (f && f.v > total) { total = f.v; cargoAchado = cargo; }
-  }
-  return { v: total, cargo: cargoAchado };
+// ═══════════════════════════════════════════════════════
+// NAVEGAÇÃO
+// ═══════════════════════════════════════════════════════
+function goPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(btn)btn.classList.add('active');
+  else document.querySelector(`.nb[onclick*="${id}"]`)?.classList.add('active');
 }
 
-function setStatus(txt, tipo='') {
-  const el = document.getElementById('statusPill');
-  el.textContent = txt;
-  el.className = 'status-pill' + (tipo ? ' '+tipo : '');
-}
-
-// ═══════════════════════════════════════════
-// PARSE CSV
-// ═══════════════════════════════════════════
-async function carregarCargo(cargo) {
-  if (todosCargos[cargo]) return todosCargos[cargo];
-
-  const pubId = CARGOS[cargo];
-  const url = `https://docs.google.com/spreadsheets/d/e/${pubId}/pub?output=csv&t=${Date.now()}`;
-  const res = await fetch(url);
-  const csv = await res.text();
-  const linhas = csv.split('\n');
-  const sep = linhas[0].includes('\t') ? '\t' : (linhas[0].includes(';') ? ';' : ',');
-
-  const db = {};
-  linhas.slice(1).forEach(linha => {
-    if (!linha.trim()) return;
-    const col = linha.split(sep).map(c => c.replace(/"/g,'').trim());
-    if (col.length < 6) return;
-    const mun  = S(col[1]);
-    const cand = S(col[2]);
-    const votos = parseInt(col[5].replace(/\D/g,'')) || 0;
-    if (!mun || !cand) return;
-    if (!db[mun]) db[mun] = { cands: [], total: 0 };
-    const ex = db[mun].cands.find(c => c.n === cand);
-    if (ex) ex.v += votos; else db[mun].cands.push({ n: cand, v: votos });
-    db[mun].total += votos;
-  });
-
-  Object.values(db).forEach(d => {
-    d.teto = Math.max(...d.cands.map(c => c.v), 1);
-    d.cands.sort((a,b) => b.v - a.v);
-  });
-
-  todosCargos[cargo] = db;
-  return db;
-}
-
-// ═══════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════
-async function init() {
-  try {
-    setStatus('BAIXANDO MAPA...', 'loading');
-    const gRes = await fetch('https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-41-mun.json');
-    geoJSON = await gRes.json();
-
-    setStatus('CARREGANDO ELEITORADO...', 'loading');
-    // Carrega vereadores para calcular eleitorado
-    const dbVer = await carregarCargo('vereador');
-    Object.entries(dbVer).forEach(([mun, d]) => { eleitorado[mun] = d.total; });
-
-    setStatus('CARREGANDO PREFEITO...', 'loading');
-    bancoDados = await carregarCargo('prefeito');
-
-    const n = Object.keys(bancoDados).length;
-    setStatus(`PRONTO · ${n} MUN`, 'ok');
-    atualizarPainelModo();
-    desenhar();
-  } catch(e) {
-    console.error(e);
-    setStatus('ERRO', 'err');
-  }
-}
-
-// ═══════════════════════════════════════════
-// TROCA CARGO
-// ═══════════════════════════════════════════
-async function trocarCargo() {
-  if (carregando) return;
-  carregando = true;
-  const cargo = document.getElementById('cargo').value;
-  setStatus(`CARREGANDO ${cargo.toUpperCase()}...`, 'loading');
-  try {
-    bancoDados = await carregarCargo(cargo);
-    const n = Object.keys(bancoDados).length;
-    setStatus(`PRONTO · ${n} MUN`, 'ok');
-    desenhar();
-    if (munSelecionado) mostrarSidebar(munSelecionado);
-  } catch(e) {
-    setStatus('ERRO', 'err');
-  }
-  carregando = false;
-}
-
-// ═══════════════════════════════════════════
-// MODOS
-// ═══════════════════════════════════════════
-function setModo(m) {
-  modo = m;
-  document.querySelectorAll('.mode-tab').forEach((t,i) => {
-    const modos = ['neutro','vencedor','comparar','forca','pesquisa'];
-    t.classList.toggle('active', modos[i] === m);
-  });
-  atualizarPainelModo();
-  desenhar();
-  // Limpa sidebar
-  document.getElementById('munNome').textContent = 'Paraná';
-  document.getElementById('munSub').textContent = 'Selecione um município no mapa';
-  document.getElementById('sidebarBody').innerHTML = `<div class="placeholder"><div class="placeholder-icon">${{'neutro':'🗺️','vencedor':'🏆','comparar':'⚡','forca':'📊','pesquisa':'🔍'}[m]}</div><div class="placeholder-text">${{'neutro':'Mapa neutro.<br>Selecione outro modo.','vencedor':'Mostrando vencedor<br>por município.','comparar':'Digite dois candidatos<br>para comparar.','forca':'Digite um candidato<br>para ver sua força.','pesquisa':'Digite na busca acima<br>para pesquisar.'}[m]}</div></div>`;
-  munSelecionado = null;
-}
-
-function atualizarPainelModo() {
-  const el = document.getElementById('panelModo');
-  const templates = {
-    neutro: `<div class="hint">Mapa sem coloração. Clique em um município para ver os dados.</div>`,
-    vencedor: `<div class="hint">Mapa colorido pelo candidato com mais votos em cada município.</div>`,
-    comparar: `<div class="inputs-row">
-      <input type="text" id="iA" placeholder="Candidato A" oninput="desenhar()" style="border-color:#3b82f644">
-      <input type="text" id="iB" placeholder="Candidato B" oninput="desenhar()" style="border-color:#e6394644">
-    </div>
-    <div class="hint">Busca em todos os cargos carregados. Azul = A vence · Vermelho = B vence</div>`,
-    forca: `<div class="inputs-row">
-      <input type="text" id="iF" placeholder="Nome do candidato" oninput="desenhar()" style="flex:1">
-    </div>
-    <div class="hint">Intensidade = % dos votos do candidato no total do município</div>`,
-    pesquisa: `<div class="inputs-row">
-      <input type="text" id="iP" placeholder="Município ou candidato..." oninput="pesquisar()" style="flex:1">
-    </div>
-    <div class="hint">Resultados aparecem abaixo e no mapa</div>`
-  };
-  el.innerHTML = templates[modo] || '';
-}
-
-// ═══════════════════════════════════════════
-// PESQUISA
-// ═══════════════════════════════════════════
-function pesquisar() {
-  const q = S(document.getElementById('iP')?.value || '');
-  if (q.length < 2) {
-    document.getElementById('sidebarBody').innerHTML = `<div class="placeholder"><div class="placeholder-icon">🔍</div><div class="placeholder-text">Digite pelo menos 2 letras</div></div>`;
-    desenhar();
+// ═══════════════════════════════════════════════════════
+// LOAD SHEET DATA
+// ═══════════════════════════════════════════════════════
+function loadSheetData(){
+  if(typeof google==='undefined'||!google.script){
+    setStatus('sheets','err','Preview');
+    renderPolls(null);renderAgenda([]);
     return;
   }
+  setStatus('sheets','load','Lendo planilhas...');
+  log('Lendo planilhas de votos...');
+  google.script.run
+    .withSuccessHandler(data=>{
+      sheetData=data;
+      votosAgregados=data.votosAgregados||{};
+      sandroAlex=data.sandroAlex||{};
+      topCandidatos=data.topCandidatos||{};
+      sheetAgenda=data.agenda||[];
+      sheetMunicipios=data.municipios||[];
+      sheetEstimativas=data.estimativas||[];
 
-  // Verifica se é município
-  const munResults = geoJSON?.features?.filter(f => S(f.properties.name).includes(q)) || [];
-  // Verifica se é candidato em qualquer cargo
-  const candResults = [];
-  for (const [cargo, db] of Object.entries(todosCargos)) {
-    for (const [mun, d] of Object.entries(db)) {
-      d.cands.forEach(c => {
-        if (matchCand(c.n, q)) {
-          const ex = candResults.find(r => r.nome === c.n);
-          if (ex) { ex.totalVotos += c.v; ex.municipios++; }
-          else candResults.push({ nome: c.n, totalVotos: c.v, municipios: 1, cargo });
+      // Index de estimativas por município
+      estimativasIndex={};
+      sheetEstimativas.forEach(row=>{
+        const k=norm(row.municipio||row.MUNICIPIO||'');
+        if(k)estimativasIndex[k]=row;
+      });
+
+      // Index de votos
+      muniNormIndex={};
+      Object.keys(votosAgregados).forEach(m=>{muniNormIndex[norm(m)]=m;});
+
+      const totalMunis=Object.keys(votosAgregados).length;
+      const totalCargos=Object.keys(topCandidatos).length;
+      setStatus('sheets',data.cacheStatus==='ok'?'ok':'err','Planilhas: '+totalMunis+' munic.·'+totalCargos+' cargos');
+      log('<b>Planilhas:</b> '+totalMunis+' municípios · '+totalCargos+' cargos · '+sheetEstimativas.length+' estimativas');
+
+      let totalSandro=0;
+      Object.values(sandroAlex).forEach(d=>{totalSandro+=(d['2022']||0);});
+      if(totalSandro>0)document.getElementById('heroSandroVotos').textContent=fmtN(totalSandro)+' votos';
+
+      if(data.pesquisas&&data.pesquisas.length>0)renderPolls(data.pesquisas);else renderPolls(null);
+      renderAgenda(sheetAgenda);
+      if(data.noticiasSalvas&&data.noticiasSalvas.length>0)injectSavedNews(data.noticiasSalvas);
+
+      const sel=document.getElementById('topCargoSel');
+      sel.innerHTML=Object.keys(topCandidatos).map(c=>`<option value="${c}">${c}</option>`).join('');
+      renderTopCandidatos();
+
+      if(geoFeatures.length>0){redrawMap();renderNewsDotsOnMap();}
+      calcCruzamento();
+    })
+    .withFailureHandler(e=>{
+      setStatus('sheets','err','Erro: '+e.message);
+      log('Erro planilhas: '+e.message);
+    })
+    .getAllData();
+}
+
+// ═══════════════════════════════════════════════════════
+// MAPA — INICIALIZAÇÃO
+// ═══════════════════════════════════════════════════════
+function initMap(){
+  setStatus('map','load','Carregando mapa...');
+  document.getElementById('mapLoading').style.display='flex';
+  const geoUrl='https://servicodados.ibge.gov.br/api/v3/malhas/estados/41/municipios?formato=application/vnd.geo+json&resolucao=2';
+
+  // Carrega índice de municípios IBGE
+  fetch(CORS+encodeURIComponent('https://servicodados.ibge.gov.br/api/v1/localidades/estados/41/municipios'))
+    .then(r=>r.json()).then(data=>{
+      geoMuniNomes={};
+      data.forEach(m=>{
+        const cod=String(m.id);const nome=String(m.nome).toUpperCase().trim();
+        geoMuniNomes[cod]=nome;
+        if(cod.length===7)geoMuniNomes[cod.slice(0,6)]=nome;
+      });
+      document.getElementById('mapLoadTxt').textContent='CARREGANDO GEOJSON...';
+      loadGeoJSON(geoUrl);
+    }).catch(()=>loadGeoJSON(geoUrl));
+}
+
+function loadGeoJSON(url){
+  const doRender=geo=>{
+    geoFeatures=geo.features||[];
+    geoFeatures.forEach(f=>{
+      const cod=String(f.properties?.codarea||f.properties?.CD_MUN||'');
+      const nome=f.properties?.NM_MUN||'';
+      if(cod&&nome&&!geoMuniNomes[cod])geoMuniNomes[cod]=String(nome).toUpperCase().trim();
+    });
+    buildProjection();
+    renderSVGMap();
+  };
+  if(typeof google!=='undefined'&&google.script){
+    google.script.run.withSuccessHandler(json=>{try{doRender(JSON.parse(json));}catch(e){fetchGeoFallback(url,doRender);}}).withFailureHandler(()=>fetchGeoFallback(url,doRender)).fetchGeoJSON(url);
+  } else {
+    fetchGeoFallback(url,doRender);
+  }
+}
+
+function fetchGeoFallback(url,cb){
+  fetch(CORS+encodeURIComponent(url)).then(r=>r.json()).then(cb)
+    .catch(e=>{setStatus('map','err','Erro GeoJSON');log('Mapa: '+e.message);});
+}
+
+function buildProjection(){
+  const features=geoFeatures;
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  features.forEach(f=>{forEachCoord(f.geometry,(lng,lat)=>{
+    if(lng<minX)minX=lng;if(lng>maxX)maxX=lng;if(lat<minY)minY=lat;if(lat>maxY)maxY=lat;
+  });});
+  geoBounds={minX,maxX,minY,maxY};
+  const W=780,H=760,pad=20;
+  const scX=(W-pad*2)/(maxX-minX),scY=(H-pad*2)/(maxY-minY);
+  const sc=Math.min(scX,scY);
+  geoProject=(lng,lat)=>[pad+(lng-minX)*sc,H-pad-(lat-minY)*sc];
+}
+
+function forEachCoord(geom,fn){
+  if(!geom)return;
+  if(geom.type==='Polygon')geom.coordinates.forEach(ring=>ring.forEach(c=>fn(c[0],c[1])));
+  else if(geom.type==='MultiPolygon')geom.coordinates.forEach(poly=>poly.forEach(ring=>ring.forEach(c=>fn(c[0],c[1]))));
+}
+
+function geoToPath(geom,proj){
+  if(!geom)return'';
+  const rings=[];
+  if(geom.type==='Polygon')rings.push(...geom.coordinates);
+  else if(geom.type==='MultiPolygon')geom.coordinates.forEach(p=>rings.push(...p));
+  return rings.map(ring=>ring.map((c,i)=>{const[x,y]=proj(c[0],c[1]);return(i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1);}).join(' ')+' Z').join(' ');
+}
+
+// ═══════════════════════════════════════════════════════
+// MAPA — RENDER
+// ═══════════════════════════════════════════════════════
+function renderSVGMap(){
+  const svg=document.getElementById('svgMap');
+  svg.innerHTML='';
+  svgPaths={};
+
+  // Grupo principal para pan/zoom
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('id','mapGroup');
+  svg.appendChild(g);
+
+  geoFeatures.forEach(f=>{
+    const props=f.properties||{};
+    const cod=String(props.codarea||props.CD_MUN||props.id||'');
+    const pathStr=geoToPath(f.geometry,geoProject);
+    if(!pathStr)return;
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',pathStr);
+    path.setAttribute('fill',getMuniColor(cod));
+    path.setAttribute('stroke','#060c14');
+    path.setAttribute('stroke-width','0.5');
+    path.style.cursor='pointer';
+    path.style.transition='fill .2s';
+    path.addEventListener('mouseenter',e=>onMuniHover(e,cod));
+    path.addEventListener('mouseleave',()=>hideTooltip());
+    path.addEventListener('click',e=>onMuniClick(e,cod));
+    svgPaths[cod]=path;
+    g.appendChild(path);
+  });
+
+  // Pan/zoom eventos
+  setupPanZoom(svg);
+
+  document.getElementById('mapLoading').style.display='none';
+  setStatus('map','ok','Mapa PR: '+geoFeatures.length+' municípios');
+  log('<b>Mapa:</b> '+geoFeatures.length+' municípios carregados');
+  updateMapLegend();
+  renderNewsDotsOnMap();
+}
+
+// ═══════════════════════════════════════════════════════
+// MAPA — PAN & ZOOM
+// ═══════════════════════════════════════════════════════
+function setupPanZoom(svg){
+  svg.addEventListener('mousedown',e=>{
+    if(e.target===svg||e.target.id==='svgMap'){isDragging=true;dragStart={x:e.clientX-panX,y:e.clientY-panY};}
+  });
+  svg.addEventListener('mousemove',e=>{
+    if(!isDragging)return;
+    panX=e.clientX-dragStart.x;panY=e.clientY-dragStart.y;applyTransform();
+  });
+  svg.addEventListener('mouseup',()=>{isDragging=false;});
+  svg.addEventListener('mouseleave',()=>{isDragging=false;});
+  svg.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const factor=e.deltaY<0?1.15:1/1.15;
+    doZoom(factor);
+  },{passive:false});
+}
+
+function doZoom(factor){
+  zoomLevel=Math.max(.5,Math.min(8,zoomLevel*factor));applyTransform();
+}
+function resetZoom(){zoomLevel=1;panX=0;panY=0;applyTransform();}
+function applyTransform(){
+  const g=document.getElementById('mapGroup');if(!g)return;
+  g.setAttribute('transform',`translate(${panX},${panY}) scale(${zoomLevel})`);
+}
+
+function zoomToMuni(cod){
+  // Calcula centroid do município
+  const f=geoFeatures.find(f=>String(f.properties?.codarea||f.properties?.CD_MUN||'')===cod);
+  if(!f)return;
+  let sumX=0,sumY=0,cnt=0;
+  forEachCoord(f.geometry,(lng,lat)=>{const[x,y]=geoProject(lng,lat);sumX+=x;sumY+=y;cnt++;});
+  if(!cnt)return;
+  const cx=sumX/cnt,cy=sumY/cnt;
+  const svgEl=document.getElementById('svgMap');
+  const rect=svgEl.getBoundingClientRect();
+  const svgW=rect.width,svgH=rect.height;
+  const targetZoom=4;
+  zoomLevel=targetZoom;
+  // Centra no município
+  panX=svgW/2-cx*targetZoom;
+  panY=svgH/2-cy*targetZoom;
+  applyTransform();
+}
+
+// ═══════════════════════════════════════════════════════
+// MAPA — CORES
+// ═══════════════════════════════════════════════════════
+function getMuniColor(cod){
+  if(mapMode==='estimativa2026'){
+    const geoNome=geoMuniNomes[cod];if(!geoNome)return'#101820';
+    const row=estimativasIndex[norm(geoNome)];if(!row)return'#101820';
+    const lider=String(row.lider_estimado||row.Lider_Estimado||row.LIDER||'').toLowerCase();
+    if(!candFilters.sandro&&lider.includes('sandro'))return'#1a2030';
+    if(!candFilters.moro&&lider.includes('moro'))return'#1a2030';
+    if(!candFilters.requiao&&(lider.includes('requiao')||lider.includes('requião')))return'#1a2030';
+    if(!candFilters.greca&&lider.includes('greca'))return'#1a2030';
+    if(lider.includes('sandro'))return'rgba(255,140,0,.8)';
+    if(lider.includes('moro'))return'rgba(26,110,255,.8)';
+    if(lider.includes('requiao')||lider.includes('requião'))return'rgba(204,26,42,.8)';
+    if(lider.includes('greca'))return'rgba(139,111,232,.8)';
+    return'#1a2a3a';
+  }
+  if(mapMode==='sandro2022'){
+    const d=getSandroVotosByCod(cod);
+    if(!d||!d['2022'])return'#101820';
+    const allV=Object.values(sandroAlex).map(x=>x['2022']||0);
+    const maxV=Math.max(...allV,1);
+    const intensity=Math.min(d['2022']/maxV,1);
+    return`rgba(255,140,0,${(0.12+intensity*.82).toFixed(2)})`;
+  }
+  const muniData=getMuniDataByCod(cod);
+  if(!muniData||!muniData.cargos)return'#141e2a';
+  const cargoKey=elecToKey(mapMode);
+  const cands=muniData.cargos[cargoKey]||findCargo(muniData.cargos,mapMode);
+  if(!cands||!cands.length)return'#141e2a';
+  const top=cands[0];
+  return getPC(top.partido||top.p||'');
+}
+
+function elecToKey(e){
+  const m={'dep_federal':'DEPUTADO FEDERAL','dep_estadual':'DEPUTADO ESTADUAL','governador':'GOVERNADOR','prefeito':'PREFEITO','vereador':'VEREADOR'};
+  return m[e]||e.toUpperCase();
+}
+
+function findCargo(cargos,elec){
+  const t=norm(elecToKey(elec));
+  for(const[k,v]of Object.entries(cargos)){if(norm(k).includes(t)||t.includes(norm(k)))return v;}
+  return null;
+}
+
+function getMuniDataByCod(cod){
+  const geoNome=geoMuniNomes[cod];if(!geoNome)return null;
+  const normNome=norm(geoNome);
+  const key=muniNormIndex[normNome];if(key)return{nome:key,cargos:votosAgregados[key]};
+  for(const[k,orig]of Object.entries(muniNormIndex)){
+    if(k===normNome||k.startsWith(normNome)||normNome.startsWith(k))return{nome:orig,cargos:votosAgregados[orig]};
+  }
+  return null;
+}
+
+function getSandroVotosByCod(cod){
+  const geoNome=geoMuniNomes[cod];if(!geoNome)return null;
+  const normNome=norm(geoNome);
+  for(const[m,d]of Object.entries(sandroAlex)){if(norm(m)===normNome||norm(m).includes(normNome)||normNome.includes(norm(m)))return d;}
+  return null;
+}
+
+function redrawMap(){
+  Object.entries(svgPaths).forEach(([cod,path])=>{path.setAttribute('fill',getMuniColor(cod));});
+  updateMapLegend();
+  renderNewsDotsOnMap();
+}
+
+// ═══════════════════════════════════════════════════════
+// MAPA — INTERAÇÕES
+// ═══════════════════════════════════════════════════════
+function onMuniHover(e,cod){
+  const geoNome=geoMuniNomes[cod]||cod;
+  const muniData=getMuniDataByCod(cod);
+  const tt=document.getElementById('mapTooltip');
+  let html=`<div class="tt-name">${muniData?.nome||geoNome}</div>`;
+
+  if(mapMode==='estimativa2026'){
+    const row=estimativasIndex[norm(geoNome)];
+    if(row){
+      const lider=row.lider_estimado||row.Lider_Estimado||'—';
+      const cands=['sandro','moro','requiao','greca'];
+      cands.forEach(c=>{
+        const keys=[c,c+'_2026','est_'+c,'est_'+c+'_2026'];
+        for(const k of Object.keys(row)){
+          if(keys.some(kk=>norm(k).includes(norm(kk).replace('_','')))){
+            const v=parseFloat(row[k]);if(!isNaN(v)&&v>0){
+              html+=`<div class="tt-row"><span>${CAND_LABELS[c]||c}</span><b>${v.toFixed(1)}%</b></div>`;
+            }
+          }
         }
       });
+      html+=`<div class="tt-row"><span>Líder estimado</span><b>${lider}</b></div>`;
+    }
+  } else if(mapMode==='sandro2022'){
+    const d=getSandroVotosByCod(cod);
+    html+=`<div class="tt-row"><span>Votos 2022</span><b>${d&&d['2022']?fmtN(d['2022']):'-'}</b></div>`;
+  } else if(muniData?.cargos){
+    const cargoKey=elecToKey(mapMode);
+    const cands=muniData.cargos[cargoKey]||findCargo(muniData.cargos,mapMode);
+    if(cands&&cands.length){
+      const top=cands[0];const _n=c=>c.nome||c.n||'';const _p=c=>c.partido||c.p||'';const _v=c=>c.votos||c.v||0;
+      html+=`<div class="tt-row"><span>1º</span><b>${_n(top)} (${_p(top)})</b></div>`;
+      html+=`<div class="tt-row"><span>Votos</span><b>${fmtN(_v(top))}</b></div>`;
     }
   }
-  candResults.sort((a,b) => b.totalVotos - a.totalVotos);
 
-  let html = '';
-
-  if (munResults.length > 0) {
-    html += `<div class="sec-title">Municípios (${munResults.length})</div>`;
-    munResults.slice(0,5).forEach(f => {
-      const k = S(f.properties.name);
-      const d = bancoDados[k];
-      html += `<div class="search-item" onclick="focarMunicipio('${k}','${f.properties.name}')">
-        <div class="search-item-nome">${f.properties.name}</div>
-        <div class="search-item-sub">Eleitorado: ${fmtN(eleitorado[k]||0)} · Votos totais: ${fmtN(d?.total||0)}</div>
-      </div>`;
-    });
-  }
-
-  if (candResults.length > 0) {
-    html += `<div class="sec-title">Candidatos (${candResults.length} entradas)</div>`;
-    candResults.slice(0,8).forEach(r => {
-      html += `<div class="search-item" onclick="focarCandidato('${r.nome}')">
-        <div class="search-item-nome">${r.nome}</div>
-        <div class="search-item-sub">${r.cargo.toUpperCase()} · ${r.municipios} municípios · <span class="search-item-badge">${fmtN(r.totalVotos)} votos</span></div>
-      </div>`;
-    });
-  }
-
-  if (!html) html = `<div class="placeholder"><div class="placeholder-icon">😶</div><div class="placeholder-text">Nenhum resultado para<br>"${document.getElementById('iP').value}"</div></div>`;
-
-  document.getElementById('sidebarBody').innerHTML = html;
-  desenhar(); // destaca municípios encontrados
+  tt.innerHTML=html;tt.style.display='block';
+  const rect=document.getElementById('mapCenter').getBoundingClientRect();
+  let left=e.clientX-rect.left+12,top=e.clientY-rect.top+12;
+  if(left+240>rect.width)left=e.clientX-rect.left-240;
+  tt.style.left=left+'px';tt.style.top=top+'px';
 }
 
-function focarMunicipio(key, nome) {
-  munSelecionado = geoJSON.features.find(f => S(f.properties.name) === key);
-  if (munSelecionado) mostrarSidebar(munSelecionado);
-  // Zoom
-  const layer = encontrarLayer(key);
-  if (layer) map.fitBounds(layer.getBounds(), { padding: [40,40] });
-}
+function hideTooltip(){document.getElementById('mapTooltip').style.display='none';}
 
-function focarCandidato(nome) {
-  // Muda para modo força e preenche
-  setModo('forca');
-  setTimeout(() => {
-    const el = document.getElementById('iF');
-    if (el) { el.value = nome; desenhar(); }
-  }, 50);
-}
+function onMuniClick(e,cod){
+  e.stopPropagation();
+  const geoNome=geoMuniNomes[cod]||cod;
+  const muniData=getMuniDataByCod(cod);
+  const drawer=document.getElementById('muniDrawer');
+  const content=document.getElementById('muniDrawerContent');
+  const nome=muniData?.nome||geoNome;
 
-let layerMap = {};
-function encontrarLayer(key) { return layerMap[key]; }
+  const _n=c=>c.nome||c.n||'';
+  const _p=c=>c.partido||c.p||'';
+  const _v=c=>c.votos||c.v||0;
 
-// ═══════════════════════════════════════════
-// CORES
-// ═══════════════════════════════════════════
-// Paleta para vencedores (índice 0-9)
-const PARTY_COLORS = [
-  '#3b82f6','#e63946','#22c55e','#f59e0b','#a855f7',
-  '#06b6d4','#f97316','#ec4899','#84cc16','#6366f1'
-];
-let vencedorColorMap = {};
+  let html=`<div class="md-name">${nome}</div><div class="md-sub">CÓDIGO IBGE: ${cod}</div>`;
 
-function buildVencedorColors() {
-  vencedorColorMap = {};
-  let idx = 0;
-  Object.values(bancoDados).forEach(d => {
-    if (d.cands.length > 0) {
-      const v = d.cands[0].n;
-      if (!vencedorColorMap[v]) vencedorColorMap[v] = PARTY_COLORS[idx++ % PARTY_COLORS.length];
-    }
-  });
-}
-
-function getStyleNeutro() {
-  return { color: '#1c2440', weight: 0.5, fillColor: '#111827', fillOpacity: 0.6 };
-}
-
-function getStyleVencedor(munKey) {
-  const d = bancoDados[munKey];
-  if (!d || d.cands.length === 0) return getStyleNeutro();
-  const cor = vencedorColorMap[d.cands[0].n] || '#3b82f6';
-  return { color: '#ffffff11', weight: 0.5, fillColor: cor, fillOpacity: 0.75 };
-}
-
-function getStyleComparar(munKey) {
-  const bA = S(document.getElementById('iA')?.value || '');
-  const bB = S(document.getElementById('iB')?.value || '');
-  if (bA.length < 2 && bB.length < 2) return getStyleNeutro();
-
-  let vA = 0, vB = 0;
-  // Busca em todos os cargos carregados
-  for (const [cargo, db] of Object.entries(todosCargos)) {
-    const d = db[munKey];
-    if (!d) continue;
-    if (bA.length >= 2) { const f = d.cands.find(c => matchCand(c.n, bA)); if (f) vA += f.v; }
-    if (bB.length >= 2) { const f = d.cands.find(c => matchCand(c.n, bB)); if (f) vB += f.v; }
-  }
-  // Também no cargo atual
-  const da = bancoDados[munKey];
-  if (da) {
-    if (bA.length >= 2) { const f = da.cands.find(c => matchCand(c.n, bA)); if (f && !todosCargos['prefeito']?.[munKey]) vA += f.v; }
-    if (bB.length >= 2) { const f = da.cands.find(c => matchCand(c.n, bB)); if (f) vB += f.v; }
-  }
-
-  if (vA + vB === 0) return { color: '#1c2440', weight: 0.5, fillColor: '#111', fillOpacity: 0.3 };
-  const ratio = vB / (vA + vB);
-  const intensity = Math.max(0.35, Math.abs(ratio - 0.5) * 2.2);
-  return {
-    color: '#ffffff11', weight: 0.5,
-    fillColor: ratio > 0.5 ? '#e63946' : '#3b82f6',
-    fillOpacity: intensity
-  };
-}
-
-function getStyleForca(munKey) {
-  const busca = S(document.getElementById('iF')?.value || '');
-  if (busca.length < 2) return getStyleNeutro();
-
-  let votos = 0;
-  for (const [cargo, db] of Object.entries(todosCargos)) {
-    const d = db[munKey];
-    if (!d) continue;
-    const f = d.cands.find(c => matchCand(c.n, busca));
-    if (f) votos += f.v;
-  }
-
-  const el = eleitorado[munKey] || 1;
-  const pct = Math.min(votos / el, 1);
-
-  if (votos === 0) return { color: '#1c2440', weight: 0.5, fillColor: '#111', fillOpacity: 0.2 };
-
-  // Gradiente azul: quanto mais votos, mais intenso
-  const opacity = 0.2 + pct * 0.8;
-  return { color: '#ffffff11', weight: 0.5, fillColor: '#3b82f6', fillOpacity: opacity };
-}
-
-function getStylePesquisa(munKey) {
-  const q = S(document.getElementById('iP')?.value || '');
-  if (q.length < 2) return getStyleNeutro();
-  const isMun = geoJSON.features.some(f => S(f.properties.name) === munKey && S(f.properties.name).includes(q));
-  if (isMun) return { color: '#fff', weight: 2, fillColor: '#3b82f6', fillOpacity: 0.6 };
-  // É candidato?
-  let achou = false;
-  for (const db of Object.values(todosCargos)) {
-    const d = db[munKey];
-    if (d && d.cands.find(c => matchCand(c.n, q))) { achou = true; break; }
-  }
-  if (achou) return { color: '#ffffff44', weight: 1, fillColor: '#22c55e', fillOpacity: 0.5 };
-  return getStyleNeutro();
-}
-
-// ═══════════════════════════════════════════
-// DESENHAR
-// ═══════════════════════════════════════════
-function desenhar() {
-  if (window._camada) map.removeLayer(window._camada);
-  if (modo === 'vencedor') buildVencedorColors();
-  layerMap = {};
-
-  window._camada = L.geoJSON(geoJSON, {
-    style: f => {
-      const k = S(f.properties.name);
-      switch(modo) {
-        case 'vencedor': return getStyleVencedor(k);
-        case 'comparar': return getStyleComparar(k);
-        case 'forca':    return getStyleForca(k);
-        case 'pesquisa': return getStylePesquisa(k);
-        default:         return getStyleNeutro();
+  // Estimativas 2026
+  const row=estimativasIndex[norm(geoNome)];
+  if(row){
+    html+=`<div class="md-section">Estimativa 2026</div>`;
+    const cands=['sandro','moro','requiao','greca'];
+    cands.forEach(c=>{
+      for(const k of Object.keys(row)){
+        if(norm(k).includes(norm(c))){
+          const v=parseFloat(row[k]);
+          if(!isNaN(v)&&v>0){
+            html+=`<div class="md-est-row">
+              <span class="md-est-name" style="color:${CAND_COLORS[c]}">${CAND_LABELS[c]}</span>
+              <div class="md-est-bar"><div class="md-est-fill" style="width:${Math.min(v*2,100)}%;background:${CAND_COLORS[c]}"></div></div>
+              <span class="md-est-pct" style="color:${CAND_COLORS[c]}">${v.toFixed(1)}%</span>
+            </div>`;
+          }
+        }
       }
-    },
-    onEachFeature: (f, layer) => {
-      const k = S(f.properties.name);
-      layerMap[k] = layer;
-
-      layer.on('mouseover', e => {
-        layer.setStyle({ weight: 2, color: '#ffffff88' });
-        const d = bancoDados[k];
-        const tip = L.tooltip({ className: 'map-tooltip', sticky: true, direction: 'top' });
-        const el = eleitorado[k] ? ` · ${fmtN(eleitorado[k])} eleit.` : '';
-        tip.setContent(`<b>${f.properties.name}</b>${el}`);
-        layer.bindTooltip(tip).openTooltip(e.latlng);
-      });
-      layer.on('mouseout', () => {
-        if (window._camada) window._camada.resetStyle(layer);
-        layer.unbindTooltip();
-      });
-      layer.on('click', () => {
-        munSelecionado = f;
-        mostrarSidebar(f);
-      });
-    }
-  }).addTo(map);
-
-  atualizarLegenda();
-}
-
-// ═══════════════════════════════════════════
-// LEGENDA
-// ═══════════════════════════════════════════
-function atualizarLegenda() {
-  const el = document.getElementById('legenda');
-  if (modo === 'vencedor') {
-    const top5 = Object.entries(vencedorColorMap).slice(0,5);
-    if (top5.length === 0) { el.style.display='none'; return; }
-    el.style.display='block';
-    el.innerHTML = `<div class="legenda-title">Vencedor</div>` +
-      top5.map(([n,c]) => `<div class="legenda-row"><div class="legenda-dot" style="background:${c}"></div><span>${n.split(' ')[0]}</span></div>`).join('');
-  } else if (modo === 'comparar') {
-    const a = document.getElementById('iA')?.value || 'A';
-    const b = document.getElementById('iB')?.value || 'B';
-    el.style.display='block';
-    el.innerHTML = `<div class="legenda-title">Comparação</div>
-      <div class="legenda-row"><div class="legenda-dot" style="background:#3b82f6"></div><span>${a||'Candidato A'}</span></div>
-      <div class="legenda-row"><div class="legenda-dot" style="background:#e63946"></div><span>${b||'Candidato B'}</span></div>`;
-  } else if (modo === 'forca') {
-    el.style.display='block';
-    el.innerHTML = `<div class="legenda-title">Força</div>
-      <div style="display:flex;gap:3px;align-items:center;font-size:10px;color:var(--muted)">
-        <span>Baixa</span>
-        <div style="width:60px;height:6px;border-radius:3px;background:linear-gradient(90deg,#1d4ed8,#3b82f6,#93c5fd)"></div>
-        <span>Alta</span>
-      </div>`;
-  } else {
-    el.style.display='none';
+    });
+    const lider=row.lider_estimado||row.Lider_Estimado||'';
+    if(lider)html+=`<div style="font-size:.62rem;color:var(--muted);margin-top:4px">Líder: <b style="color:var(--accent)">${lider}</b></div>`;
   }
+
+  // Sandro 2022
+  const sandroD=getSandroVotosByCod(cod);
+  if(sandroD&&sandroD['2022']){
+    html+=`<div class="md-section">Sandro Alex 2022</div>
+      <div style="font-size:1.1rem;font-weight:700;color:var(--sandro);font-family:var(--font-head);padding:4px 0">${fmtN(sandroD['2022'])} votos</div>`;
+  }
+
+  // Cargos eleitorais
+  if(muniData?.cargos){
+    html+=`<div class="md-section">Resultados Eleitorais</div>`;
+    Object.entries(muniData.cargos).slice(0,6).forEach(([cargo,cands])=>{
+      if(!cands||!cands.length)return;
+      const top=cands[0];const col=getPC(_p(top));
+      html+=`<div class="md-row">
+        <span class="md-cargo">${cargo.replace('DEPUTADO','DEP.').slice(0,14)}</span>
+        <span class="md-nome">${_n(top)}</span>
+        <span class="md-part" style="background:${col}22;color:${col}">${_p(top)}</span>
+        <span class="md-votos">${fmtN(_v(top))}</span>
+      </div>`;
+    });
+  }
+
+  // Notícias da região
+  const regiaoNots=allItems.filter(i=>{
+    const meso=getNoticiaMeso(i);
+    const muniNorm=norm(nome);
+    return muniNorm.includes(norm(meso))||norm(meso).includes(muniNorm.split(' ')[0]);
+  }).slice(0,3);
+  if(regiaoNots.length){
+    html+=`<div class="md-section">Notícias Recentes</div>`;
+    regiaoNots.forEach(n=>{
+      const sent=String(n.sentimento||n.sentiment||'').toLowerCase();
+      const cor=sent.includes('pos')?'var(--pos)':sent.includes('neg')?'var(--neg)':'var(--muted)';
+      html+=`<div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:.65rem">
+        <a href="${n.url||'#'}" target="_blank" style="color:var(--text);text-decoration:none;line-height:1.4;display:block">${(n.titulo||n.title||'').slice(0,70)}</a>
+        <span style="color:${cor};font-size:.58rem">${sent.includes('pos')?'▲ Positivo':sent.includes('neg')?'▼ Negativo':'→ Neutro'}</span>
+      </div>`;
+    });
+  }
+
+  html+=`<button class="btn-ai-muni" onclick="genMuniAI('${nome}','${cod}')">✦ ANÁLISE ESTRATÉGICA IA</button>
+    <div class="ai-resp" id="aiResp-${cod}"></div>`;
+
+  content.innerHTML=html;
+  drawer.classList.add('open');
+  zoomToMuni(cod);
 }
 
-// ═══════════════════════════════════════════
-// SIDEBAR — MUNICÍPIO
-// ═══════════════════════════════════════════
-function mostrarSidebar(f) {
-  const k = S(f.properties.name);
-  const d = bancoDados[k];
-  const el = eleitorado[k] || 0;
+function closeDrawer(){
+  document.getElementById('muniDrawer').classList.remove('open');
+  resetZoom();
+}
 
-  document.getElementById('munNome').textContent = f.properties.name;
-  document.getElementById('munSub').textContent = el > 0 ? `Eleitorado estimado: ${fmtN(el)}` : 'Dados eleitorais não disponíveis';
+document.getElementById('mapCenter').addEventListener('click',e=>{
+  if(e.target===document.getElementById('mapCenter')||e.target===document.getElementById('svgMap')){
+    closeDrawer();
+    document.getElementById('newsPopup').style.display='none';
+  }
+});
 
-  if (!d) {
-    document.getElementById('sidebarBody').innerHTML = `<div class="placeholder"><div class="placeholder-icon">😶</div><div class="placeholder-text">Sem dados para este município<br><small style="color:#333">${k}</small></div></div>`;
+// ═══════════════════════════════════════════════════════
+// MAPA — MODO E FILTROS
+// ═══════════════════════════════════════════════════════
+function setMapMode(mode,btn){
+  mapMode=mode;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  redrawMap();
+}
+
+function toggleCand(cand,btn){
+  candFilters[cand]=!candFilters[cand];
+  btn.classList.toggle('active',candFilters[cand]);
+  redrawMap();
+}
+
+// ═══════════════════════════════════════════════════════
+// MAPA — LEGENDA
+// ═══════════════════════════════════════════════════════
+function updateMapLegend(){
+  const el=document.getElementById('mapLegend');
+  if(mapMode==='estimativa2026'){
+    el.innerHTML=`<div class="leg-title">ESTIMATIVA 2026</div>
+      <div class="leg-row"><div class="leg-dot" style="background:rgba(255,140,0,.8)"></div>Sandro Alex (PSD)</div>
+      <div class="leg-row"><div class="leg-dot" style="background:rgba(26,110,255,.8)"></div>Sergio Moro (PL)</div>
+      <div class="leg-row"><div class="leg-dot" style="background:rgba(204,26,42,.8)"></div>Requião Filho (PDT)</div>
+      <div class="leg-row"><div class="leg-dot" style="background:rgba(139,111,232,.8)"></div>Rafael Greca (MDB)</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#1a2a3a;border:1px solid #2a3a4a"></div>Sem estimativa</div>`;
+    return;
+  }
+  if(mapMode==='sandro2022'){
+    el.innerHTML=`<div class="leg-title">SANDRO ALEX 2022</div>
+      <div class="leg-row"><div class="leg-dot" style="background:rgba(255,140,0,.9)"></div>Alta votação</div>
+      <div class="leg-row"><div class="leg-dot" style="background:rgba(255,140,0,.4)"></div>Média</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#101820;border:1px solid #2a3040"></div>Sem votos</div>`;
+    return;
+  }
+  // Modo partido
+  const wins={};
+  Object.values(votosAgregados).forEach(cargos=>{
+    const key=elecToKey(mapMode);
+    const cands=cargos[key]||findCargo(cargos,mapMode);
+    if(cands&&cands[0])wins[cands[0].partido||cands[0].p||'']=(wins[cands[0].partido||cands[0].p||'']||0)+1;
+  });
+  const sorted=Object.entries(wins).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  el.innerHTML=`<div class="leg-title">${elecToKey(mapMode)}</div>`+sorted.map(([p,c])=>`<div class="leg-row"><div class="leg-dot" style="background:${getPC(p)}"></div>${p} <span style="margin-left:auto;opacity:.5">${c}</span></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// MAPA — BUSCA RÁPIDA + ZOOM
+// ═══════════════════════════════════════════════════════
+function doMapSearch(){
+  const nome=document.getElementById('qNome').value.trim();
+  const cargo=document.getElementById('qCargo').value;
+  const el=document.getElementById('mapSearchResults');
+  if(!nome&&!cargo){el.innerHTML='<div style="color:var(--muted2);font-family:var(--font-mono);font-size:.6rem;text-align:center;padding:8px">PREENCHA O NOME</div>';return;}
+  el.innerHTML='<div style="color:var(--muted);font-family:var(--font-mono);font-size:.6rem;text-align:center;padding:8px">BUSCANDO...</div>';
+
+  const results=[];
+  Object.entries(votosAgregados).forEach(([muniNome,cargos])=>{
+    Object.entries(cargos).forEach(([cargoNome,cands])=>{
+      if(cargo&&!norm(cargoNome).includes(norm(cargo)))return;
+      cands.forEach(c=>{
+        if(nome&&!norm(c.nome||c.n||'').includes(norm(nome)))return;
+        const key=norm(c.nome||c.n||'')+'|'+norm(cargoNome);
+        const ex=results.find(r=>r._key===key);
+        const v=c.votos||c.v||0;
+        if(ex){ex.totalVotos+=v;ex.munis.push({muni:muniNome,votos:v});}
+        else results.push({_key:key,nome:c.nome||c.n||'',cargo:cargoNome,partido:c.partido||c.p||'',totalVotos:v,munis:[{muni:muniNome,votos:v}]});
+      });
+    });
+  });
+
+  results.sort((a,b)=>b.totalVotos-a.totalVotos);
+  const top=results.slice(0,10);
+
+  if(!top.length){
+    el.innerHTML='<div style="color:var(--muted2);font-family:var(--font-mono);font-size:.6rem;text-align:center;padding:12px">NENHUM RESULTADO</div>';
     return;
   }
 
-  let html = '';
-
-  // Métricas
-  const pctEl = el > 0 ? ((d.total/el)*100).toFixed(1)+'%' : '—';
-  html += `<div class="metrics-grid">
-    <div class="metric-card">
-      <div class="metric-val">${fmtN(d.total)}</div>
-      <div class="metric-lbl">Total Votos</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-val">${pctEl}</div>
-      <div class="metric-lbl">% Eleitorado</div>
-    </div>
-  </div>`;
-
-  // Modo específico
-  if (modo === 'comparar') {
-    const bA = document.getElementById('iA')?.value || '';
-    const bB = document.getElementById('iB')?.value || '';
-    if (bA.length >= 2 || bB.length >= 2) {
-      let vA = 0, vB = 0;
-      for (const db of Object.values(todosCargos)) {
-        const dd = db[k]; if (!dd) continue;
-        if (bA.length >= 2) { const f = dd.cands.find(c => matchCand(c.n, S(bA))); if (f) vA += f.v; }
-        if (bB.length >= 2) { const f = dd.cands.find(c => matchCand(c.n, S(bB))); if (f) vB += f.v; }
-      }
-      const soma = vA + vB || 1;
-      html += `<div class="comp-versus">
-        <div class="comp-card a">
-          <div class="comp-nome">${bA||'A'}</div>
-          <div class="comp-val a">${fmtN(vA)}</div>
-          <div class="comp-pct">${((vA/soma)*100).toFixed(1)}%</div>
-        </div>
-        <div class="vs-label">VS</div>
-        <div class="comp-card b">
-          <div class="comp-nome">${bB||'B'}</div>
-          <div class="comp-val b">${fmtN(vB)}</div>
-          <div class="comp-pct">${((vB/soma)*100).toFixed(1)}%</div>
-        </div>
+  el.innerHTML=top.map((r,i)=>{
+    const col=getPC(r.partido);
+    const topMunis=r.munis.sort((a,b)=>b.votos-a.votos).slice(0,3);
+    return`<div class="sr-item" onclick="zoomToCandidato('${r.nome}','${r.cargo}')">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-family:var(--font-mono);font-size:.55rem;color:var(--muted2)">${i+1}</span>
+        <div class="sr-name">${r.nome}</div>
+        <span style="font-size:.55rem;font-weight:700;padding:1px 5px;border-radius:1px;background:${col}22;color:${col}">${r.partido}</span>
       </div>
-      <div class="versus-bar">
-        <div class="seg-a" style="width:${(vA/soma*100).toFixed(1)}%"></div>
-        <div class="seg-b" style="flex:1"></div>
-      </div>`;
-    }
-  }
-
-  if (modo === 'forca') {
-    const busca = document.getElementById('iF')?.value || '';
-    if (busca.length >= 2) {
-      let totalCand = 0;
-      for (const db of Object.values(todosCargos)) {
-        const dd = db[k]; if (!dd) continue;
-        const f = dd.cands.find(c => matchCand(c.n, S(busca)));
-        if (f) totalCand += f.v;
-      }
-      const pctEl2 = el > 0 ? ((totalCand/el)*100).toFixed(1)+'%' : '—';
-      html += `<div class="winner-badge">
-        <div>
-          <div class="wname">${busca.toUpperCase()}</div>
-          <div class="wvotos">${fmtN(totalCand)} votos · ${pctEl2} do eleitorado</div>
-        </div>
-      </div>`;
-    }
-  }
-
-  // Vencedor
-  if (d.cands.length > 0 && modo !== 'forca') {
-    const v = d.cands[0];
-    const cor = vencedorColorMap[v.n] || '#3b82f6';
-    html += `<div class="winner-badge" style="border-color:${cor}44;background:${cor}11">
-      <div>
-        <div class="wname" style="color:${cor}">🏆 ${v.n}</div>
-        <div class="wvotos">${fmtN(v.v)} votos · ${fmtPct(v.v, d.total)} do total</div>
-      </div>
+      <div class="sr-cargo">${r.cargo}</div>
+      <div class="sr-votos">${fmtN(r.totalVotos)} votos totais</div>
+      <div class="sr-munis">${topMunis.map(m=>`<span onclick="event.stopPropagation();zoomToMuniNome('${m.muni}')" style="cursor:pointer;text-decoration:underline;color:var(--accent)">${m.muni}</span> (${fmtN(m.votos)})`).join(' · ')}</div>
     </div>`;
-  }
-
-  // Lista candidatos
-  html += `<div class="sec-title">Todos os Candidatos</div>`;
-  d.cands.slice(0, 12).forEach((c, i) => {
-    const pct = (c.v / d.total * 100);
-    html += `<div class="cand-item">
-      <div class="cand-row">
-        <span class="cand-nome" style="color:${i===0?'var(--gold)':'var(--text)'}">${i===0?'👑 ':''}${c.n}</span>
-        <span class="cand-votos">${fmtN(c.v)}</span>
-      </div>
-      <div class="cand-row" style="margin-top:0">
-        <span class="cand-pct">${pct.toFixed(1)}%</span>
-      </div>
-      <div class="bar-wrap"><div class="bar-fill ${i===0?'winner':i===1?'b':''}" style="width:${pct.toFixed(1)}%"></div></div>
-    </div>`;
-  });
-
-  document.getElementById('sidebarBody').innerHTML = html;
+  }).join('');
 }
 
-// ═══════════════════════════════════════════
-// START
-// ═══════════════════════════════════════════
-atualizarPainelModo();
-init();
+function zoomToMuniNome(nome){
+  // Encontra o cod pelo nome
+  for(const[cod,n]of Object.entries(geoMuniNomes)){
+    if(norm(n)===norm(nome)){
+      goPage('mapa');
+      zoomToMuni(cod);
+      // Abre drawer após zoom
+      setTimeout(()=>{
+        const f=geoFeatures.find(f=>String(f.properties?.codarea||f.properties?.CD_MUN||'')===cod);
+        if(f){onMuniClick({stopPropagation:()=>{}},cod);}
+      },400);
+      return;
+    }
+  }
+}
+
+function zoomToCandidato(nome,cargo){
+  // Destaca municípios onde o candidato tem votos
+  goPage('mapa');
+  Object.entries(svgPaths).forEach(([cod,path])=>{
+    path.setAttribute('fill',getMuniColor(cod));
+    path.setAttribute('opacity','0.3');
+  });
+  let firstCod=null;
+  Object.entries(votosAgregados).forEach(([muniNome,cargos])=>{
+    const cands=cargos[norm(cargo)]||findCargo(cargos,cargo.toLowerCase().replace(' ','_'))||
+      Object.values(cargos).flat();
+    const found=(Array.isArray(cands)?cands:[]).find(c=>norm(c.nome||c.n||'')===norm(nome));
+    if(!found)return;
+    // Encontra o cod deste município
+    for(const[cod,n]of Object.entries(geoMuniNomes)){
+      if(norm(n)===norm(muniNome)&&svgPaths[cod]){
+        const col=getPC(found.partido||found.p||'');
+        svgPaths[cod].setAttribute('fill',col);
+        svgPaths[cod].setAttribute('opacity','1');
+        if(!firstCod)firstCod=cod;
+        break;
+      }
+    }
+  });
+  if(firstCod)setTimeout(()=>zoomToMuni(firstCod),100);
+  // Restaura após 5s
+  setTimeout(()=>{Object.values(svgPaths).forEach(p=>p.setAttribute('opacity','1'));redrawMap();},5000);
+}
+
+// ═══════════════════════════════════════════════════════
+// MAPA — PONTOS DE NOTÍCIAS (sala de guerra)
+// ═══════════════════════════════════════════════════════
+function getNoticiaMeso(n){
+  const fonte=String(n.fonte||n.source||'').toLowerCase();
+  for(const[key,meso]of Object.entries(PORTAL_MESO)){
+    if(fonte.includes(key))return meso;
+  }
+  const cands=String(n.candidatos||n.candidate||'').toLowerCase();
+  if(cands.includes('sandro'))return'Sudoeste';
+  if(cands.includes('moro'))return'Metropolitana';
+  if(cands.includes('greca'))return'Metropolitana';
+  return'Norte Central';
+}
+
+function renderNewsDotsOnMap(){
+  if(!geoProject)return;
+  const svg=document.getElementById('svgMap');
+  svg.querySelectorAll('.news-dot-g').forEach(el=>el.remove());
+
+  const noticias=[
+    ...(sheetData.noticiasSalvas||[]),
+    ...allItems.filter(i=>i.type!=='saved')
+  ].slice(0,60);
+
+  const porMeso={};
+  noticias.forEach(n=>{
+    const meso=getNoticiaMeso(n);
+    if(!porMeso[meso])porMeso[meso]={pos:0,neg:0,neu:0,items:[]};
+    const sent=String(n.sentimento||n.sentiment||'').toLowerCase();
+    if(sent.includes('pos'))porMeso[meso].pos++;
+    else if(sent.includes('neg'))porMeso[meso].neg++;
+    else porMeso[meso].neu++;
+    porMeso[meso].items.push(n);
+  });
+
+  Object.entries(porMeso).forEach(([meso,dados])=>{
+    const centro=MESORREGIOES_CENTROS[meso];if(!centro)return;
+    const[px,py]=geoProject(centro[0],centro[1]);
+
+    const total=dados.pos+dados.neg+dados.neu;
+    const cor=dados.neg>dados.pos?'#ff2244':dados.pos>dados.neg?'#00cc66':'#ffaa00';
+    const r=Math.min(7+total*1.8,20);
+
+    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','news-dot-g');
+    g.style.cursor='pointer';
+
+    // Pulso
+    const pulse=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    pulse.setAttribute('cx',px);pulse.setAttribute('cy',py);pulse.setAttribute('r',r+4);
+    pulse.setAttribute('fill',cor);pulse.setAttribute('opacity','0');
+    const animR=document.createElementNS('http://www.w3.org/2000/svg','animate');
+    animR.setAttribute('attributeName','r');animR.setAttribute('values',`${r+2};${r+14};${r+2}`);animR.setAttribute('dur','2.5s');animR.setAttribute('repeatCount','indefinite');
+    const animO=document.createElementNS('http://www.w3.org/2000/svg','animate');
+    animO.setAttribute('attributeName','opacity');animO.setAttribute('values','0.4;0;0.4');animO.setAttribute('dur','2.5s');animO.setAttribute('repeatCount','indefinite');
+    pulse.appendChild(animR);pulse.appendChild(animO);
+
+    // Ponto
+    const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('cx',px);dot.setAttribute('cy',py);dot.setAttribute('r',r);
+    dot.setAttribute('fill',cor);dot.setAttribute('opacity','0.9');
+    dot.setAttribute('stroke','rgba(0,0,0,.5)');dot.setAttribute('stroke-width','1');
+
+    // Número
+    const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',px);txt.setAttribute('y',py+4);txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('font-size','9');txt.setAttribute('font-weight','700');txt.setAttribute('fill','#fff');
+    txt.setAttribute('font-family','Share Tech Mono,monospace');
+    txt.textContent=total;
+
+    g.appendChild(pulse);g.appendChild(dot);g.appendChild(txt);
+
+    g.addEventListener('click',e=>{e.stopPropagation();showNewsPopup(e,meso,dados);});
+    g.addEventListener('mouseenter',()=>dot.setAttribute('r',r+3));
+    g.addEventListener('mouseleave',()=>dot.setAttribute('r',r));
+
+    svg.appendChild(g);
+  });
+}
+
+function showNewsPopup(e,meso,dados){
+  const popup=document.getElementById('newsPopup');
+  const content=document.getElementById('newsPopupContent');
+  const rect=document.getElementById('mapCenter').getBoundingClientRect();
+  let left=e.clientX-rect.left+10,top=e.clientY-rect.top-20;
+  if(left+290>rect.width)left=e.clientX-rect.left-300;
+  popup.style.left=left+'px';popup.style.top=top+'px';
+
+  const total=dados.pos+dados.neg+dados.neu;
+  content.innerHTML=`
+    <div class="np-region">${meso}</div>
+    <div class="np-count">${total} notícias · <span style="color:var(--pos)">▲${dados.pos}</span> <span style="color:var(--neg)">▼${dados.neg}</span> <span style="color:var(--muted)">→${dados.neu}</span></div>
+    ${dados.items.slice(0,5).map(n=>{
+      const sent=String(n.sentimento||n.sentiment||'').toLowerCase();
+      const cor=sent.includes('pos')?'var(--pos)':sent.includes('neg')?'var(--neg)':'var(--muted)';
+      return`<div class="np-item">
+        <div class="np-sent-bar" style="background:${cor}"></div>
+        <div class="np-txt">
+          <div class="np-title"><a href="${n.url||n.link||'#'}" target="_blank">${(n.titulo||n.title||'').slice(0,65)}${(n.titulo||n.title||'').length>65?'…':''}</a></div>
+          ${n.resumo?`<div class="np-resumo">${n.resumo.slice(0,80)}…</div>`:''}
+          <div class="np-fonte">${n.fonte||n.source||''} · ${timeAgo(n.publishedAt||new Date())}</div>
+        </div>
+      </div>`;
+    }).join('')}`;
+  popup.style.display='block';
+}
+
+// ═══════════════════════════════════════════════════════
+// NOTÍCIAS — FEED LATERAL
+// ═══════════════════════════════════════════════════════
+const QUERIES={
+  sandro:'Sandro+Alex+PSD+Paraná+2026',
+  moro:'Sergio+Moro+Paraná+2026',
+  requiao:'Requião+Filho+PDT+Paraná',
+  greca:'Rafael+Greca+MDB+Curitiba',
+};
+function gnUrl(q){return'https://news.google.com/rss/search?q='+q+'&hl=pt-BR&gl=BR&ceid=BR:pt-419';}
+
+async function fetchAllNews(){
+  setStatus('news','load','Buscando notícias...');
+  const res=[];
+  for(const[c,q]of Object.entries(QUERIES)){
+    try{
+      const r=await fetch(CORS+encodeURIComponent(gnUrl(q)));
+      const xml=new DOMParser().parseFromString(await r.text(),'application/xml');
+      xml.querySelectorAll('item').forEach(item=>{
+        const title=item.querySelector('title')?.textContent||'';
+        const link=item.querySelector('link')?.textContent||'';
+        const desc=(item.querySelector('description')?.textContent||'').replace(/<[^>]+>/g,'');
+        const pub=item.querySelector('pubDate')?.textContent||'';
+        const src=item.querySelector('source')?.textContent||'GNews';
+        res.push({
+          id:btoa(link).slice(0,16),type:'news',
+          candidate:c,candidates:detectCands(title+' '+desc),
+          titulo:title,snippet:desc.slice(0,200),url:link,
+          fonte:src,publishedAt:pub?new Date(pub):new Date(),
+          sentimento:null,
+        });
+      });
+    }catch(e){log('Notícias '+c+': '+e.message);}
+  }
+  const seen=new Set(allItems.map(i=>i.id));
+  const fresh=res.filter(i=>!seen.has(i.id));
+  allItems=[...fresh,...allItems].sort((a,b)=>b.publishedAt-a.publishedAt).slice(0,80);
+  setStatus('news','ok','Notícias: '+allItems.length);
+  log('<b>Notícias:</b> '+fresh.length+' novas');
+  document.getElementById('lastUp').textContent='ATUALIZADO: '+new Date().toLocaleTimeString('pt-BR')+' · '+allItems.length+' ITENS';
+  renderNewsFeed();
+  renderNewsDotsOnMap();
+  updateTicker();
+  updateThermometers();
+}
+
+function injectSavedNews(noticias){
+  const saved=noticias.slice(0,20).map(n=>({
+    id:n.id||('s_'+Math.random().toString(36).slice(2)),
+    type:'saved',candidate:detectCands(n.titulo||'')[0]||'outros',
+    candidates:detectCands(n.titulo||''),
+    titulo:n.titulo||'',snippet:n.resumo||'',url:n.url||'',
+    fonte:n.fonte||'Salvo',publishedAt:new Date(n.data_publicacao||n.salvo_em||Date.now()),
+    sentimento:n.sentimento||null,
+  }));
+  saved.forEach(i=>{if(!allItems.find(x=>x.id===i.id))allItems.unshift(i);});
+  allItems.sort((a,b)=>b.publishedAt-a.publishedAt);
+  renderNewsFeed();
+  renderNewsDotsOnMap();
+}
+
+function setNewsFilter(f,btn){
+  newsFilter=f;
+  document.querySelectorAll('.nf-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderNewsFeed();
+}
+
+function renderNewsFeed(){
+  let items=allItems;
+  if(newsFilter==='positivo')items=items.filter(i=>String(i.sentimento||'').toLowerCase().includes('pos'));
+  else if(newsFilter==='negativo')items=items.filter(i=>String(i.sentimento||'').toLowerCase().includes('neg'));
+  else if(newsFilter!=='all')items=items.filter(i=>i.candidate===newsFilter||i.candidates?.includes(newsFilter));
+
+  const pos=allItems.filter(i=>String(i.sentimento||'').toLowerCase().includes('pos')).length;
+  const neg=allItems.filter(i=>String(i.sentimento||'').toLowerCase().includes('neg')).length;
+  document.getElementById('nPos').textContent='+'+pos;
+  document.getElementById('nNeg').textContent='-'+neg;
+
+  const el=document.getElementById('newsFeed');
+  if(!items.length){el.innerHTML='<div style="color:var(--muted2);font-family:var(--font-mono);font-size:.6rem;text-align:center;padding:16px">SEM RESULTADOS</div>';return;}
+
+  el.innerHTML=items.slice(0,30).map((item,idx)=>{
+    const sent=String(item.sentimento||'').toLowerCase();
+    const sentClass=sent.includes('pos')?'pos':sent.includes('neg')?'neg':item.sentimento?'neu':'pend';
+    const sentLbl={pos:'▲ BOM',neg:'▼ RUIM',neu:'→ NEUTRO',pend:'◌'}[sentClass];
+    const candChips=(item.candidates||[]).filter(c=>c!=='outros').map(c=>`<span class="ni-cand" style="background:${CAND_COLORS[c]||'#526070'}22;color:${CAND_COLORS[c]||'#526070'}">${CAND_LABELS[c]||c}</span>`).join('');
+    return`<div class="news-item ${sentClass}" onclick="toggleNItem(this,'${item.id}')">
+      <div class="ni-meta">
+        <span class="ni-sent ${sentClass}">${sentLbl}</span>
+        ${candChips}
+        <span class="ni-time">${timeAgo(item.publishedAt)}</span>
+      </div>
+      <div class="ni-title">${item.titulo}</div>
+      <div class="ni-fonte">${item.fonte||''}</div>
+      <div class="ni-expand" id="ni-exp-${item.id}">
+        ${item.snippet?`<div style="margin-bottom:6px;line-height:1.5">${item.snippet}</div>`:''}
+        <a href="${item.url||'#'}" target="_blank" rel="noopener">→ Ver notícia completa</a>
+        <button onclick="event.stopPropagation();doAnalyzeNews('${item.id}')" style="display:block;margin-top:6px;width:100%;padding:4px;border:1px solid var(--accent);background:var(--adim);color:var(--accent);font-family:var(--font-mono);font-size:.58rem;cursor:pointer;border-radius:1px">✦ Analisar sentimento IA</button>
+        <div id="ni-ai-${item.id}" style="margin-top:5px;font-size:.62rem;color:var(--muted);display:none"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleNItem(el,id){
+  const exp=document.getElementById('ni-exp-'+id);
+  exp.classList.toggle('open');
+}
+
+async function doAnalyzeNews(id){
+  const item=allItems.find(i=>i.id===id);if(!item)return;
+  const box=document.getElementById('ni-ai-'+id);
+  box.style.display='block';box.textContent='Analisando...';
+  setStatus('ai','load','IA...');
+  try{
+    const prompt=`Analise sentimento desta notícia sobre candidatos ao governo do Paraná 2026.\nTítulo: "${item.titulo}"\nTrecho: "${item.snippet||''}"\nResponda APENAS JSON:\n{"sentimento":"positivo"|"negativo"|"neutro","candidato_afetado":"sandro"|"moro"|"requiao"|"greca"|"outros","justificativa":"1 frase curta"}`;
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:150,messages:[{role:'user',content:prompt}]})});
+    const d=await r.json();
+    const raw=(d.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim();
+    const res=JSON.parse(raw);
+    item.sentimento=res.sentimento;
+    sentCache[id]=res;
+    const cor=res.sentimento==='positivo'?'var(--pos)':res.sentimento==='negativo'?'var(--neg)':'var(--muted)';
+    box.innerHTML=`<span style="color:${cor}">${res.sentimento.toUpperCase()}</span> — ${res.justificativa}`;
+    setStatus('ai','ok','IA pronta');
+    renderNewsFeed();
+    renderNewsDotsOnMap();
+    updateThermometers();
+  }catch(e){box.textContent='Erro: '+e.message;setStatus('ai','err','Erro');}
+}
+
+// ═══════════════════════════════════════════════════════
+// AI — MUNICÍPIO
+// ═══════════════════════════════════════════════════════
+async function genMuniAI(nome,cod){
+  const box=document.getElementById('aiResp-'+cod);if(!box)return;
+  box.classList.add('open');box.textContent='Gerando análise...';
+  const cargos=votosAgregados[nome]||{};
+  const linhas=Object.entries(cargos).slice(0,4).map(([cargo,cands])=>{
+    const top=cands[0];return`${cargo}: ${top?.nome||top?.n||'—'} (${top?.partido||top?.p||'—'}) ${fmtN(top?.votos||top?.v||0)} votos`;
+  }).join('\n');
+  const est=estimativasIndex[norm(nome)];
+  const estTxt=est?`Estimativa 2026: ${JSON.stringify(est)}`:'Sem estimativa disponível.';
+  const prompt=`Estrategista eleitoral — Gov. PR 2026. Município: ${nome}\n${estTxt}\nResultados TSE:\n${linhas}\n\nAnálise: perfil do eleitor (2 frases), 3 demandas, mensagem central, 2 riscos, 2 oportunidades. Máx 120 palavras.`;
+  try{
+    setStatus('ai','load','IA...');
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:350,messages:[{role:'user',content:prompt}]})});
+    const d=await r.json();box.textContent=d.content?.[0]?.text||'Sem resposta.';setStatus('ai','ok','IA pronta');
+  }catch(e){box.textContent='Erro: '+e.message;setStatus('ai','err','Erro');}
+}
+
+// ═══════════════════════════════════════════════════════
+// BUSCA FULL
+// ═══════════════════════════════════════════════════════
+function doBusca(){
+  const nome=document.getElementById('bNome').value.trim();
+  const cargo=document.getElementById('bCargo').value;
+  const muni=document.getElementById('bMuni').value.trim();
+  const el=document.getElementById('bResult');
+  if(!nome&&!cargo&&!muni){el.innerHTML='<div class="no-result">PREENCHA AO MENOS UM CAMPO</div>';return;}
+  el.innerHTML='<div class="no-result">BUSCANDO...</div>';
+
+  if(typeof google!=='undefined'&&google.script){
+    google.script.run
+      .withSuccessHandler(res=>renderBuscaResult(res,muni))
+      .withFailureHandler(e=>{el.innerHTML=`<div class="no-result" style="color:var(--neg)">ERRO: ${e.message}</div>`;})
+      .buscarCandidato({nome,cargo,municipio:muni});
+    return;
+  }
+
+  // Fallback local
+  const results=[];
+  Object.entries(votosAgregados).forEach(([muniNome,cargos])=>{
+    if(muni&&!norm(muniNome).includes(norm(muni)))return;
+    Object.entries(cargos).forEach(([cargoNome,cands])=>{
+      if(cargo&&!norm(cargoNome).includes(norm(cargo)))return;
+      cands.forEach(c=>{
+        if(nome&&!norm(c.nome||c.n||'').includes(norm(nome)))return;
+        const key=norm(c.nome||c.n||'')+'|'+norm(cargoNome);
+        const ex=results.find(r=>r._key===key);
+        const v=c.votos||c.v||0;
+        if(ex){ex.totalVotos+=v;ex.municipios.push({municipio:muniNome,votos:v});}
+        else results.push({_key:key,nome:c.nome||c.n||'',cargo:cargoNome,partido:c.partido||c.p||'',totalVotos:v,municipios:[{municipio:muniNome,votos:v}]});
+      });
+    });
+  });
+  renderBuscaResult(results.sort((a,b)=>b.totalVotos-a.totalVotos).slice(0,40));
+}
+
+function renderBuscaResult(results,muniFilter){
+  const el=document.getElementById('bResult');
+  if(!results||!results.length){el.innerHTML='<div class="no-result">NENHUM CANDIDATO ENCONTRADO</div>';return;}
+  const maxV=results[0]?.totalVotos||1;
+  el.innerHTML=results.map((c,i)=>{
+    const col=getPC(c.partido);
+    const munis=(c.municipios||[]).sort((a,b)=>b.votos-a.votos).slice(0,6);
+    const pct=Math.round(c.totalVotos/maxV*100);
+    return`<div class="bcard">
+      <div class="bc-head">
+        <span class="bc-rank">${i+1}º</span>
+        <span class="bc-nome">${c.nome}</span>
+        <span class="bc-partido" style="background:${col}22;color:${col}">${c.partido}</span>
+      </div>
+      <div class="bc-cargo">${c.cargo}</div>
+      <div class="bc-total">${fmtN(c.totalVotos)} votos</div>
+      <div class="bc-bar"><div class="bc-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+      <div class="bc-munis">${munis.map(m=>`<span class="bc-muni" onclick="goPage('mapa');setTimeout(()=>zoomToMuniNome('${m.municipio}'),200)" title="${fmtN(m.votos)} votos">${m.municipio}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// CRUZAMENTO
+// ═══════════════════════════════════════════════════════
+function calcCruzamento(){
+  cruzData=[];
+  const sandroVArr=Object.values(sandroAlex).map(d=>d['2022']||0).filter(v=>v>0).sort((a,b)=>a-b);
+  const mediana=sandroVArr.length?sandroVArr[Math.floor(sandroVArr.length/2)]:0;
+  const maxV=sandroVArr.length?sandroVArr[sandroVArr.length-1]:1;
+
+  Object.entries(votosAgregados).forEach(([muniNome,cargos])=>{
+    const prefKey=Object.keys(cargos).find(k=>norm(k)==='PREFEITO');if(!prefKey)return;
+    const cands=cargos[prefKey]||[];if(!cands.length)return;
+    const _p=c=>c.partido||c.p||'',_n=c=>c.nome||c.n||'',_s=c=>String(c.situacao||c.s||'').toUpperCase();
+    const eleito=cands.find(c=>_s(c).includes('ELEITO')&&!_s(c).includes('NAO'))||cands[0];
+    const partido=_p(eleito),campo=getCampo(partido);
+    let sandroV=0;
+    for(const[m,d]of Object.entries(sandroAlex)){if(norm(m)===norm(muniNome)){sandroV=d['2022']||0;break;}}
+    let classe;
+    if(campo==='esquerda')classe='adversario';
+    else if(campo==='direita')classe=sandroV>=mediana?'aliado-forte':'aliado-fraco';
+    else classe='neutro';
+    const score=(campo==='direita'?40:campo==='centro'?20:0)+Math.round((sandroV/maxV)*40);
+    cruzData.push({municipio:muniNome,prefeitoNome:_n(eleito),partido,campo,sandroV,sandroForca:maxV>0?sandroV/maxV:0,classe,score});
+  });
+  cruzData.sort((a,b)=>b.score-a.score);
+  document.getElementById('cs-af').textContent=cruzData.filter(d=>d.classe==='aliado-forte').length;
+  document.getElementById('cs-aw').textContent=cruzData.filter(d=>d.classe==='aliado-fraco').length;
+  document.getElementById('cs-ad').textContent=cruzData.filter(d=>d.classe==='adversario').length;
+  document.getElementById('cs-ne').textContent=cruzData.filter(d=>d.classe==='neutro').length;
+  cruzPg_=0;renderCruzTable();
+}
+
+function cruzPg(dir){cruzPg_=Math.max(0,Math.min(cruzPg_+dir,Math.ceil(cruzData.length/CRUZ_PP)-1));renderCruzTable();}
+
+function renderCruzTable(){
+  const body=document.getElementById('cruzBody');
+  const loading=document.getElementById('cruzLoading');
+  const wrap=document.getElementById('cruzWrap');
+  if(!cruzData.length){loading.style.display='block';wrap.style.display='none';return;}
+  loading.style.display='none';wrap.style.display='block';
+  const start=cruzPg_*CRUZ_PP,page=cruzData.slice(start,start+CRUZ_PP);
+  const total=Math.ceil(cruzData.length/CRUZ_PP);
+  document.getElementById('cruzPgInfo').textContent=`Pág ${cruzPg_+1}/${total}`;
+  document.getElementById('cruzPrev').disabled=cruzPg_===0;
+  document.getElementById('cruzNext').disabled=cruzPg_>=total-1;
+  const maxV=Math.max(...cruzData.map(d=>d.sandroV),1);
+  const classBadge={
+    'aliado-forte':{style:'background:rgba(26,110,255,.15);color:#5b8aff',label:'🔵 Forte'},
+    'aliado-fraco':{style:'background:rgba(26,110,255,.07);color:#3a6be8',label:'🔵 Fraco'},
+    'adversario':{style:'background:rgba(255,34,68,.15);color:#ff6b78',label:'🔴 Adv.'},
+    'neutro':{style:'background:rgba(74,96,112,.15);color:#7a8fa8',label:'⚪ Neutro'},
+  };
+  body.innerHTML=page.map((d,i)=>{
+    const b=classBadge[d.classe]||classBadge.neutro;
+    const col=CAMPO_COR[d.campo]||'#4a6070';
+    const pct=Math.round(d.sandroForca*100);
+    return`<tr>
+      <td style="color:var(--muted2);font-family:var(--font-mono);font-size:.55rem">${start+i+1}</td>
+      <td style="font-weight:600;font-size:.68rem">${d.municipio}</td>
+      <td><span style="font-size:.55rem;font-weight:700;padding:1px 5px;border-radius:1px;background:${getPC(d.partido)}22;color:${getPC(d.partido)}">${d.partido}</span></td>
+      <td style="font-size:.62rem;font-weight:600;color:${col}">${CAMPO_LBL[d.campo]||d.campo}</td>
+      <td style="font-family:var(--font-mono);font-size:.62rem;color:${d.sandroV>0?'var(--sandro)':'var(--muted2)'}">${d.sandroV>0?fmtN(d.sandroV):'—'}</td>
+      <td><span class="ct-badge" style="${b.style}">${b.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════
+function renderPolls(data){
+  const polls=(data&&data.length)?data:POLLS_DEFAULT;
+  document.getElementById('pollBody').innerHTML=polls.map(p=>`<tr>
+    <td style="font-size:.68rem">${p.inst||'—'}</td>
+    <td style="font-family:var(--font-mono);font-size:.6rem;color:var(--muted)">${p.date||'—'}</td>
+    <td style="font-weight:700;color:var(--moro);font-family:var(--font-mono)">${typeof p.moro==='number'?p.moro+'%':p.moro||'—'}</td>
+    <td style="font-weight:700;color:var(--greca);font-family:var(--font-mono)">${typeof p.greca==='number'?p.greca+'%':p.greca||'—'}</td>
+    <td style="font-weight:700;color:var(--requiao);font-family:var(--font-mono)">${typeof p.requiao==='number'?p.requiao+'%':p.requiao||'—'}</td>
+    <td style="font-size:.62rem;color:var(--muted)">${p.sit||'—'}</td>
+  </tr>`).join('');
+}
+
+function renderAgenda(data){
+  const el=document.getElementById('agendaList');if(!el)return;
+  const agenda=data||[];
+  el.innerHTML=agenda.map(a=>{
+    const tipo=(a.tipo||'reuniao').toLowerCase();
+    const cls={'reuniao':'ag-reuniao','visita':'ag-visita','debate':'ag-debate','comicio':'ag-comicio'}[tipo]||'ag-reuniao';
+    const lbl={'reuniao':'REUNIÃO','visita':'VISITA','debate':'DEBATE','comicio':'COMÍCIO'}[tipo]||'EVENTO';
+    return`<div class="ag-item">
+      <div class="ag-date">${a.data||''}</div>
+      <div style="flex:1"><div class="ag-title">${a.titulo||a.title||''}</div><div class="ag-local">📍 ${a.local||''}</div></div>
+      <span class="ag-type ${cls}">${lbl}</span>
+    </div>`;
+  }).join('')+`<button class="btn-add" onclick="addAgenda()">+ Novo evento</button>`;
+}
+
+function addAgenda(){
+  const titulo=prompt('Título:');if(!titulo)return;
+  const local=prompt('Local:');const data=prompt('Data:');const tipo=prompt('Tipo (reuniao/visita/debate/comicio):','reuniao');
+  const item={data,titulo,local,tipo:tipo||'reuniao'};sheetAgenda.push(item);renderAgenda(sheetAgenda);
+  if(typeof google!=='undefined'&&google.script)google.script.run.addAgendaItem(item);
+}
+
+function renderTopCandidatos(){
+  const sel=document.getElementById('topCargoSel');
+  const el=document.getElementById('topCandidatosWrap');
+  const cargo=sel?.value;
+  if(!cargo||!topCandidatos[cargo]){el.innerHTML='<span style="color:var(--muted2)">Selecione um cargo</span>';return;}
+  const cands=topCandidatos[cargo];
+  el.innerHTML=`<table style="width:100%;border-collapse:collapse"><thead><tr>
+    <th style="padding:3px 6px;text-align:left;font-family:var(--font-mono);font-size:.52rem;color:var(--muted);border-bottom:1px solid var(--border)">RANK</th>
+    <th style="padding:3px 6px;text-align:left;font-family:var(--font-mono);font-size:.52rem;color:var(--muted);border-bottom:1px solid var(--border)">CANDIDATO</th>
+    <th style="padding:3px 6px;font-family:var(--font-mono);font-size:.52rem;color:var(--muted);border-bottom:1px solid var(--border)">PARTIDO</th>
+    <th style="padding:3px 6px;text-align:right;font-family:var(--font-mono);font-size:.52rem;color:var(--muted);border-bottom:1px solid var(--border)">VOTOS</th>
+    <th style="padding:3px 6px;font-family:var(--font-mono);font-size:.52rem;color:var(--muted);border-bottom:1px solid var(--border)">BAR</th>
+  </tr></thead><tbody>${cands.map((c,i)=>{
+    const n=c.nome||c.n||'',p=c.partido||c.p||'',v=c.votos||c.v||0;
+    const col=getPC(p);const pct=Math.round(v/(cands[0].votos||cands[0].v||1)*100);
+    return`<tr style="${i%2===0?'background:rgba(255,255,255,.01)':''}">
+      <td style="padding:5px 6px;font-family:var(--font-mono);font-size:.6rem;color:var(--muted2)">${c.rank}</td>
+      <td style="padding:5px 6px;font-weight:${i<3?700:400};font-size:.7rem">${n}</td>
+      <td style="padding:5px 6px"><span style="font-size:.57rem;font-weight:700;padding:1px 5px;border-radius:1px;background:${col}22;color:${col}">${p}</span></td>
+      <td style="padding:5px 6px;text-align:right;font-weight:700;font-family:var(--font-mono);font-size:.68rem">${fmtN(v)}</td>
+      <td style="padding:5px 6px;width:80px"><div style="height:5px;background:var(--border);border-radius:1px;overflow:hidden"><div style="width:${pct}%;height:100%;background:${col}"></div></div></td>
+    </tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// WIDGETS
+// ═══════════════════════════════════════════════════════
+function updateThermometers(){
+  ['sandro','moro','requiao','greca'].forEach(c=>{
+    const rel=Object.values(sentCache).filter(v=>v.candidato_afetado===c);
+    if(!rel.length)return;
+    const pos=rel.filter(v=>v.sentimento==='positivo').length;
+    const pct=Math.round(pos/rel.length*100);
+    const el=document.getElementById('th-'+c);const vEl=document.getElementById('thv-'+c);
+    if(el)el.style.width=pct+'%';if(vEl)vEl.textContent=pct+'%';
+  });
+}
+
+function updateTicker(){
+  const items=allItems.slice(0,12);if(!items.length)return;
+  const html=items.map(i=>{
+    const cand=CAND_LABELS[i.candidate]||'PR 2026';
+    return`<span class="tki"><b>${cand}</b> — ${(i.titulo||'').slice(0,65)}</span>`;
+  }).join('');
+  document.getElementById('tkInner').innerHTML=html+html;
+}
+
+// ═══════════════════════════════════════════════════════
+// STATUS & LOG
+// ═══════════════════════════════════════════════════════
+function setStatus(src,state,lbl){
+  const d=document.getElementById('sd-'+src),l=document.getElementById('sl-'+src);
+  if(d)d.className='sd '+state;if(l&&lbl)l.textContent=lbl;
+}
+function log(msg){
+  const now=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  ['actLog','actLog2'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const item=document.createElement('div');item.className='act-i';
+    item.innerHTML=`<span class="act-t">${now}</span><span class="act-x">${msg}</span>`;
+    el.insertBefore(item,el.firstChild);while(el.children.length>25)el.removeChild(el.lastChild);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// SCRAPE
+// ═══════════════════════════════════════════════════════
+function forceScrapeAndReload_(){
+  if(typeof google==='undefined'||!google.script){fetchAllNews();return;}
+  log('Solicitando atualização ao servidor...');
+  setStatus('news','load','Atualizando...');
+  google.script.run
+    .withSuccessHandler(r=>{log('Update OK: '+r.timestamp);loadSheetData();fetchAllNews();})
+    .withFailureHandler(()=>fetchAllNews())
+    .forceScrape();
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('pt-BR');},1000);
+document.getElementById('clock').textContent=new Date().toLocaleTimeString('pt-BR');
+renderPolls(null);
+renderAgenda([]);
+initMap();
+loadSheetData();
+fetchAllNews();
+setInterval(fetchAllNews, REFRESH*1000);
 </script>
 </body>
 </html>
