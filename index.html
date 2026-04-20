@@ -1002,8 +1002,19 @@ function loadGeoJSON(url){
     buildProjection();
     renderSVGMap();
   };
+  // Tenta GAS primeiro (sem restrição CORS), depois proxies externos
   if(typeof google!=='undefined'&&google.script){
-    google.script.run.withSuccessHandler(json=>{try{doRender(JSON.parse(json));}catch(e){fetchGeoFallback(url,doRender);}}).withFailureHandler(()=>fetchGeoFallback(url,doRender)).fetchGeoJSON(url);
+    document.getElementById('mapLoadTxt').textContent='Carregando via servidor...';
+    google.script.run
+      .withSuccessHandler(json=>{
+        try{
+          const geo=JSON.parse(json);
+          if(geo&&geo.features&&geo.features.length>0){doRender(geo);}
+          else{fetchGeoFallback(url,doRender);}
+        }catch(e){fetchGeoFallback(url,doRender);}
+      })
+      .withFailureHandler(()=>fetchGeoFallback(url,doRender))
+      .fetchGeoJSON(url);
   } else {
     fetchGeoFallback(url,doRender);
   }
